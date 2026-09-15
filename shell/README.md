@@ -12,6 +12,14 @@ backlog for the planned interactive first-run setup (choosing which bar
 modules show, tray contents, whether to enable a dock, etc.) that will
 eventually customize this rather than requiring hand-edits.
 
+This shell talks to the WM purely over X11/EWMH plus a documented set of
+window rules — see [INTERFACE.md](INTERFACE.md) for the full contract,
+including what's already portable to another WM and what's still
+Zaris-specific. That document is prep for eventually splitting this
+directory into its own repo (see `ROADMAP.md`), so other bars/shells can
+be swapped in for Zaris the same way other WMs could in principle host
+this one.
+
 ## What's here
 
 | Directory              | Installs to             | What it is |
