@@ -807,6 +807,10 @@ Researched (via the shell's GitHub README, docs.noctalia.dev, and targeted searc
 
   Verified live: `qmllint` clean on every touched file, zero errors/warnings in the real `qs` scene log, a real before/after screenshot confirms the blank gap is gone and Control Center's icon renders correctly as the last module before Volume.
 
+- **[Done]** Fixed Volume's Bar Modules toggle/reorder controls doing nothing - reported live ("when I change the order or remove it from the bar it is still showing up"). Root cause was a real bug, not user error: `VolumeControl.qml` had been hardcoded to render unconditionally in `BarStatusModules.qml`, outside the `ModulesConfig`-driven `Repeater` entirely, by original design (its own header comment: Noctalia's reference bar keeps volume visible even when tray-enabled elsewhere, unlike every other module). That reasoning stopped being harmless the moment Settings actually grew real toggle/reorder controls for it - the config's own `volume` entry even had a stale `tray: true` default nothing ever acted on, left over from before the hardcoding existed. Fixed the same way Launcher/Workspaces/Control Center already were: `volume` is now a real module (`case "volume"` in the switch, default `enabled: true`, `section: "right"`, `order: 99` - just before Control Center's 100, restoring the original "...modules, Volume, Control Center" tail order these two swapped in the pass before this one). `VolumeControl.qml`'s own header comment updated to stop describing behavior that no longer exists.
+
+  Verified live, closing the actual loop rather than just confirming it compiles: hand-toggled `enabled: false` in the real `modules.json` (same file Settings itself writes to) and confirmed via a real screenshot that the icon genuinely disappears now - re-enabled it back to the default afterward.
+
 ## Bugs — reported 2026-09-09
 
 All 7 fixed/resolved same-day - see the matching entries folded into Done/working above (always-on-top, taskbar launcher focus, bar opacity's real root cause, Settings text fields, `NIconButton` icon centering, the notification panel's anchoring, and the Chromium/Flatpak media-art root cause).

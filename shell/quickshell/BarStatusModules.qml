@@ -10,15 +10,14 @@ import QtQuick
 // dock/workspaces) via `anySection: true` instead.
 //
 // SystemTrayRow (the real X11/StatusNotifierItem system tray, not a
-// ModulesConfig module at all) and VolumeControl (deliberately excluded
-// from ModulesConfig gating - see its own header comment) both stay
-// pinned to fixed positions within the "right" section specifically
-// (SystemTrayRow first, VolumeControl last) rather than becoming
-// reorderable/movable modules themselves - this exactly reproduces the
-// original hardcoded layout's default visual order (tray icons, then
-// every module in moduleIds order, then volume, then Control Center)
-// for anyone who's never touched the new Bar Modules tab, since every
-// module defaults to section "right" with moduleIds order preserved.
+// ModulesConfig module at all - there's nothing to reorder it against,
+// it's a variable-length list of whatever's actually running) stays
+// pinned first in the "right" section. Volume and Control Center used to
+// be hardcoded fixed positions here too (see this file's own git history)
+// - both real modules now, with explicit default `order` values
+// (99/100) reproducing the original hardcoded visual order (tray icons,
+// then every module in moduleIds order, then volume, then Control
+// Center) for anyone who's never touched the new Bar Modules tab.
 //
 // Each module id maps to a specific, differently-propped component below
 // (icon glyphs, sensor labels, text/active colors) - a Repeater +
@@ -79,6 +78,7 @@ Row {
                     case "dnd": return dndComponent
                     case "bluetooth": return bluetoothComponent
                     case "wifi": return wifiComponent
+                    case "volume": return volumeComponent
                     default: return null
                     }
                 }
@@ -86,14 +86,11 @@ Row {
         }
     }
 
-    VolumeControl {
-        // Deliberately not gated by ModulesConfig.showInBar
-        // ("volume", ...) - see VolumeControl.qml's own header comment.
-        // Falls back to its own internal `visible: sink && sink.ready`
-        // binding.
-        visible: root.section === "right"
-        textColor: Colors.purple
-        anchors.verticalCenter: parent.verticalCenter
+    Component {
+        id: volumeComponent
+        VolumeControl {
+            textColor: Colors.purple
+        }
     }
 
     Component {

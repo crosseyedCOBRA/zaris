@@ -9,11 +9,14 @@ import Quickshell.Services.Pipewire
 // directly; ControlCenter.qml's own audio section (Output/Input sliders
 // only, no device list or per-app mixing) still exists separately and is
 // unaffected by this change. Right-click still just toggles mute, unchanged.
-// Deliberately not gated by ModulesConfig's "volume" tray flag in Bar.qml -
-// same reasoning as ControlCenter.qml's media card: Noctalia's own
-// reference bar keeps a volume icon visible at the same time its Control
-// Center has the richer audio section, so this stays bar-visible
-// unconditionally rather than disappearing once "volume" is tray-enabled.
+// A real ModulesConfig module ("volume") like everything else in the bar -
+// used to be hardcoded to ignore that entry entirely and always render,
+// which read as a real bug once Settings' toggle/reorder controls
+// existed and visibly did nothing for it (see ROADMAP.md). Defaults to
+// enabled, section "right", high order - same visible-by-default bar
+// icon as before, just genuinely responsive to Settings now. Unrelated
+// to ControlCenter.qml's own separate Output/Input audio section, which
+// still exists independently either way.
 Item {
     id: root
 

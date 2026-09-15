@@ -119,7 +119,15 @@ QtObject {
             property var ram: ({ enabled: true, screens: "all", tray: false })
             property var network: ({ enabled: true, screens: "primary", tray: true })
             property var wifi: ({ enabled: true, screens: "all", tray: true })
-            property var volume: ({ enabled: true, screens: "all", tray: true })
+            // Was `tray: true` while VolumeControl.qml was still hardcoded
+            // to ignore this entry entirely and always render in the bar
+            // regardless - a real bug once it actually started being
+            // respected (reported live: toggling/reordering "Volume" in
+            // Settings visibly did nothing). `tray: false` + an explicit
+            // high `order` (matching Control Center's own reasoning just
+            // above) actually reproduces the real default look instead of
+            // the stale unused value.
+            property var volume: ({ enabled: true, screens: "all", tray: false, section: "right", order: 99 })
             property var stayAwake: ({ enabled: true, screens: "all", tray: false })
             property var nightLight: ({ enabled: true, screens: "all", tray: false })
             property var dnd: ({ enabled: true, screens: "all", tray: true })
