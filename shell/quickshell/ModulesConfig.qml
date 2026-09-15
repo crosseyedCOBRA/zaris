@@ -48,7 +48,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter"]
 
     // The subset Settings' new "Bar Modules" tab lets you add/reorder -
     // every id above except mediaPlayer, which has no bar-side rendering
@@ -147,6 +147,19 @@ QtObject {
             // layout too, for anyone who wants it without switching modes
             // entirely.
             property var taskbar: ({ enabled: false, screens: "all", tray: false })
+            // Previously a fixed rightmost Bar.qml element (both layout
+            // modes), always after Volume - explicit high `order` (rather
+            // than relying on moduleIds's own fallback order, which would
+            // put it wherever it happens to sit in that list) keeps it
+            // sorting last among real modules by default, same visual
+            // effect. Volume itself stays fixed/un-gated for its own
+            // reasons (see VolumeControl.qml), so the one default-order
+            // change from before: modules now render Volume last, not
+            // Control Center - Control Center sorts last *among modules*,
+            // immediately before the still-fixed Volume rather than after
+            // it, since nothing can render after Volume's own fixed
+            // position without un-fixing that too.
+            property var controlCenter: ({ enabled: true, screens: "all", tray: false, section: "right", order: 100 })
 
             // Control Center's vertical gauge stack (CPU load/CPU temp/
             // GPU temp/RAM) - deliberately NOT the same enabled/screens/

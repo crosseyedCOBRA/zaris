@@ -319,7 +319,8 @@ PopupWindow {
         battery: "Battery status",
         weather: "Weather",
         brightness: "Brightness",
-        taskbar: "Taskbar (running apps)"
+        taskbar: "Taskbar (running apps)",
+        controlCenter: "Control Center"
     })
 
     // Control Center tab's own chip labels - a few of these read

@@ -173,12 +173,6 @@ Variants {
                         section: "right"
                         anchors.verticalCenter: parent.verticalCenter
                     }
-
-                    BarControlCenterLauncher {
-                        barPanel: panel
-                        barSurfaceItem: barSurface
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
                 }
             }
         }
@@ -230,7 +224,8 @@ Variants {
                     anchors.centerIn: parent
                 }
 
-                // --- right: system status + clock + Control Center ---
+                // --- right: system status (Control Center included, now a
+                // real module - see ModulesConfig.qml) + clock ---
                 Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -245,12 +240,6 @@ Variants {
                     }
 
                     BarClockText {
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    BarControlCenterLauncher {
-                        barPanel: panel
-                        barSurfaceItem: barSurface
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }

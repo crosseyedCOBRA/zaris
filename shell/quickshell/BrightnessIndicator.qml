@@ -28,9 +28,14 @@ Item {
         return !isNaN(root.monitor.queuedBrightness) ? root.monitor.queuedBrightness : root.monitor.brightness
     }
 
+    // visible: false alone isn't enough inside a Row - an invisible item
+    // still reserves its implicitWidth/Height, rendering as a blank gap
+    // the size of the icon+percentage text between whichever real modules
+    // land on either side of it. Collapsing both to 0 when unavailable
+    // actually removes the space, not just what's drawn in it.
     visible: root.available
-    implicitWidth: rowLayout.implicitWidth
-    implicitHeight: rowLayout.implicitHeight
+    implicitWidth: root.available ? rowLayout.implicitWidth : 0
+    implicitHeight: root.available ? rowLayout.implicitHeight : 0
 
     Row {
         id: rowLayout

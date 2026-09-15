@@ -22,8 +22,12 @@ Item {
         return root.textColor
     }
 
-    implicitWidth: row.implicitWidth
-    implicitHeight: row.implicitHeight
+    // Collapses to 0 when there's no battery, not just invisible - see
+    // BrightnessIndicator.qml's own comment on why (an invisible item
+    // still reserves its implicitWidth/Height inside a Row otherwise,
+    // rendering as a blank gap the size of the icon+percentage text).
+    implicitWidth: root.present ? row.implicitWidth : 0
+    implicitHeight: root.present ? row.implicitHeight : 0
 
     Row {
         id: row

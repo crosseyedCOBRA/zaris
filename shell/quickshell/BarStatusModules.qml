@@ -73,6 +73,7 @@ Row {
                     case "weather": return weatherComponent
                     case "brightness": return brightnessComponent
                     case "taskbar": return taskbarComponent
+                    case "controlCenter": return controlCenterComponent
                     case "stayAwake": return stayAwakeComponent
                     case "nightLight": return nightLightComponent
                     case "dnd": return dndComponent
@@ -234,6 +235,23 @@ Row {
             onActivateRequested: DockItemsService.activate(windowId)
             onLaunchRequested: entry.execute()
             onReorderRequested: DockConfig.reorderPinned(appId, newIndex)
+        }
+    }
+
+    Component {
+        id: controlCenterComponent
+        // BarControlCenterLauncher's root is an Image, whose own
+        // implicitWidth/Height are read-only (follow the source's native
+        // size, not the explicit 26x26 render size it sets) - same
+        // wrapping-Item fix the launcher module needed above.
+        Item {
+            implicitWidth: 26
+            implicitHeight: 26
+
+            BarControlCenterLauncher {
+                barPanel: root.barPanel
+                barSurfaceItem: root.barSurfaceItem
+            }
         }
     }
 
