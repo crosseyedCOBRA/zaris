@@ -62,13 +62,14 @@ See [../DEPENDENCIES.md](../DEPENDENCIES.md) for exact package names
 (Arch/pacman verified so far). Beyond what the WM itself needs to build:
 
 - **quickshell** (`qs`) — the shell runtime itself
+- **wmctrl** — the bar's Workspaces module (`Workspaces.qml`) reads/switches workspaces entirely through this (`wmctrl -d`/`wmctrl -s`); without it, the pills just silently render as an empty row rather than erroring
 - **picom** — the recommended compositor. Zaris itself does no compositing (see `ROADMAP.md`), so without this — or another compositor started some other way — windows still render correctly, but with no real alpha blending (the Bar/Control Center/Settings' translucent panels render fully opaque), no anti-aliased rounded corners, no shadows, and no background blur. `zaris.conf` already has `exec-once=picom --config ~/.config/zaris/picom.conf`; see that file for the starter config.
 - **pipewire**, **pipewire-pulse**, **wireplumber** (includes `wpctl`) — audio + the volume OSD
 - **dunst** — notification daemon
 - **rofi** — the power menu's picker
 - **maim** — screenshots (optionally **xclip** too, to also copy to clipboard)
 - **xss-lock** + **i3lock** — idle-based screen lock. Both chosen specifically for being packaged natively on Arch, Debian, and Fedora alike (this project's earlier choices, `xautolock` and `betterlockscreen`/`i3lock-color`, weren't packaged on Debian at all) — see `DEPENDENCIES.md`. Plain `i3lock` has no blur/theming built in, a deliberate portability tradeoff.
-- **xsetroot** (usually part of `xorg-xsetroot` / `x11-apps`) — sets the default solid-color background. Optionally **xwallpaper** instead, if you swap in an actual wallpaper image (see the comment in `zaris.conf`)
+- **xwallpaper** — sets the default wallpaper image (`zaris.conf`'s `exec-once=xwallpaper --zoom ~/Pictures/...`). Optionally **xsetroot** instead (usually part of `xorg-xsetroot` / `x11-apps`), if you'd rather have a plain solid color than an image
 - A **Nerd Font** (JetBrainsMono Nerd Font in the reference config) — the bar's icons are glyphs from it, and it's also set as dunst's font
 - An icon theme (Papirus-Dark in the reference `dunstrc`) — for notification icons
 - `loginctl` (systemd-logind, or **elogind** on a non-systemd system) — the power menu's suspend/reboot/shutdown actions

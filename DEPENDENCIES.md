@@ -66,13 +66,14 @@ itself.
 |---|---|---|---|
 | The shell runtime itself | `quickshell` (official, `extra`) | **Not packaged**, but buildable from source with apt-only deps — see "Building Quickshell from source" below | `quickshell` — official, but currently a git-snapshot build (`0.2.1^git...`), not a tagged release; worth a version sanity-check before relying on it |
 | Compositor (real alpha blending, rounded-corner AA, shadows, blur) | `picom` | `picom` | `picom` — official on all three; Zaris itself does no compositing (see ROADMAP.md), `zaris.conf` execs it with `shell/zaris/picom.conf` |
+| Bar's Workspaces module (workspace pills, click to switch) | `wmctrl` | `wmctrl` | `wmctrl` — same package name on all three (unverified on Debian/Fedora beyond checking it's a real package there — not run through the same from-scratch-VM verification the rest of this table has); `Workspaces.qml` calls it directly (`wmctrl -d`/`wmctrl -s`), no fallback - missing it means the pills just silently render as an empty row |
 | Audio stack + `wpctl` for the volume OSD | `pipewire`, `pipewire-pulse`, `wireplumber` | `pipewire`, `pipewire-pulse`, `wireplumber` | `pipewire`, `pipewire-pulseaudio` (different name — no `-pulse` suffix), `wireplumber` |
 | Notification daemon | `dunst` | `dunst` | `dunst` |
 | Power menu's picker | `rofi` | `rofi` | `rofi` |
 | Screenshots (+ clipboard copy) | `maim`, `xclip` | `maim`, `xclip` | `maim`, `xclip` |
 | Idle-based screen lock timer | `xss-lock` | `xss-lock` | `xss-lock` |
 | Screen locker | `i3lock` | `i3lock` | `i3lock` |
-| Default background color | `xorg-xsetroot` (or `xwallpaper`) | `x11-xserver-utils` (provides `xsetroot`) | `xorg-x11-server-utils` (provides `xsetroot`, different name again) |
+| Wallpaper image | `xwallpaper` | `xwallpaper` | `xwallpaper` — same package name on all three (unverified on Debian/Fedora beyond checking it's a real package there, same caveat as `wmctrl` above); `zaris.conf`'s default `exec-once` now uses it directly (`--zoom`). `xorg-xsetroot`/`x11-xserver-utils`/`xorg-x11-server-utils` (all provide `xsetroot`) is the alternative if you'd rather have a plain solid color than an image |
 | Bar icon glyphs (Nerd Font) | `ttf-jetbrains-mono-nerd` (official, `extra`) | Not packaged, but installed the same way as Fedora — see "Installing the Nerd Font from upstream" below | Not packaged either — same upstream-download install as Debian |
 | Notification icon theme | `papirus-icon-theme` | `papirus-icon-theme` | `papirus-icon-theme` — official |
 | `loginctl` for the power menu | `elogind` (Arch is systemd-default, so not actually needed there — only relevant on a non-systemd Arch-based system like Artix) | `elogind`, `libpam-elogind` | Not needed — Fedora only ships systemd, `loginctl` is native |

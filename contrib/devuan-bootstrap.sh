@@ -191,13 +191,17 @@ step_shell() {
     # which pulls it straight from upstream). picom is the recommended
     # compositor - Zaris itself doesn't composite (see ROADMAP.md) -
     # zaris.conf already execs it with the shipped ~/.config/zaris/picom.conf.
+    # wmctrl is the bar's Workspaces module's only real dependency
+    # (workspace pills silently render empty without it, no error) and
+    # xwallpaper is what zaris.conf's default exec-once now sets the
+    # wallpaper with.
     #
     # zaris.conf's idle-lock now runs on xss-lock + i3lock rather than
     # this project's earlier xautolock + betterlockscreen — neither of
     # those old choices were packaged for Debian at all, xss-lock and
     # i3lock both are.
     sudo apt-get -y install \
-        picom \
+        picom wmctrl xwallpaper \
         pipewire pipewire-pulse wireplumber \
         dunst rofi maim xclip i3lock xss-lock \
         x11-xserver-utils papirus-icon-theme fontconfig
