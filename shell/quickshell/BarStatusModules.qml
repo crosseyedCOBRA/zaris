@@ -64,11 +64,15 @@ Row {
                     case "cpu": return cpuComponent
                     case "cpuTemp": return cpuTempComponent
                     case "gpuTemp": return gpuTempComponent
+                    case "ram": return ramComponent
                     case "network": return networkComponent
                     case "clipboard": return clipboardComponent
                     case "notifications": return notificationsComponent
                     case "wallpaper": return wallpaperComponent
                     case "battery": return batteryComponent
+                    case "weather": return weatherComponent
+                    case "brightness": return brightnessComponent
+                    case "taskbar": return taskbarComponent
                     case "stayAwake": return stayAwakeComponent
                     case "nightLight": return nightLightComponent
                     case "dnd": return dndComponent
@@ -160,6 +164,13 @@ Row {
     }
 
     Component {
+        id: ramComponent
+        MemUsage {
+            textColor: Colors.teal
+        }
+    }
+
+    Component {
         id: networkComponent
         NetworkStatus {
             textColor: Colors.blue
@@ -196,6 +207,33 @@ Row {
         BatteryIndicator {
             visible: BatteryService.batteryPresent
             textColor: Colors.textMuted
+        }
+    }
+
+    Component {
+        id: weatherComponent
+        WeatherIndicator {
+            textColor: Colors.blue
+        }
+    }
+
+    Component {
+        id: brightnessComponent
+        BrightnessIndicator {
+            textColor: Colors.textMuted
+        }
+    }
+
+    Component {
+        id: taskbarComponent
+        // Same component/wiring as the "taskbar" layoutMode's own embedded
+        // strip (Bar.qml) - shared, not duplicated.
+        DockIcons {
+            iconSize: Math.max(20, Math.min(BarConfig.height - 12, 40))
+            model: DockItemsService.dockItems
+            onActivateRequested: DockItemsService.activate(windowId)
+            onLaunchRequested: entry.execute()
+            onReorderRequested: DockConfig.reorderPinned(appId, newIndex)
         }
     }
 

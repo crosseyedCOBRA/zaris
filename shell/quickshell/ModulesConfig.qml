@@ -48,7 +48,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar"]
 
     // The subset Settings' new "Bar Modules" tab lets you add/reorder -
     // every id above except mediaPlayer, which has no bar-side rendering
@@ -116,6 +116,7 @@ QtObject {
             property var cpu: ({ enabled: true, screens: "all", tray: false })
             property var cpuTemp: ({ enabled: true, screens: "all", tray: false })
             property var gpuTemp: ({ enabled: true, screens: "all", tray: false })
+            property var ram: ({ enabled: true, screens: "all", tray: false })
             property var network: ({ enabled: true, screens: "primary", tray: true })
             property var wifi: ({ enabled: true, screens: "all", tray: true })
             property var volume: ({ enabled: true, screens: "all", tray: true })
@@ -128,6 +129,24 @@ QtObject {
             property var notifications: ({ enabled: true, screens: "all", tray: false })
             property var wallpaper: ({ enabled: true, screens: "all", tray: true })
             property var battery: ({ enabled: true, screens: "all", tray: true })
+            // Off by default in the bar, same reasoning as kernel above -
+            // Control Center already has its own always-visible Weather
+            // section (ControlCenter.qml, independent of this module), so
+            // it's still visible somewhere out of the box even disabled
+            // here. Real, re-enableable bar module like any other.
+            property var weather: ({ enabled: false, screens: "all", tray: false })
+            // Self-hides via BrightnessIndicator.qml's own `available`
+            // check (no controllable monitor found) - same
+            // enabled-but-gracefully-hidden pattern as battery above.
+            property var brightness: ({ enabled: true, screens: "all", tray: false })
+            // Off by default - BarConfig.layoutMode "taskbar" already
+            // gives the exact same running-apps icon strip as its own
+            // dedicated whole-bar layout (DockIcons.qml/
+            // DockItemsService.qml, shared component). This is the same
+            // strip made available as an opt-in module for "statusbar"
+            // layout too, for anyone who wants it without switching modes
+            // entirely.
+            property var taskbar: ({ enabled: false, screens: "all", tray: false })
 
             // Control Center's vertical gauge stack (CPU load/CPU temp/
             // GPU temp/RAM) - deliberately NOT the same enabled/screens/

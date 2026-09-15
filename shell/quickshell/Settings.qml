@@ -304,6 +304,7 @@ PopupWindow {
         cpu: "CPU load",
         cpuTemp: "CPU temperature",
         gpuTemp: "GPU temperature",
+        ram: "RAM usage",
         network: "Network status",
         wifi: "Wifi",
         volume: "Volume",
@@ -315,7 +316,10 @@ PopupWindow {
         clipboard: "Clipboard history",
         notifications: "Notifications",
         wallpaper: "Wallpaper picker",
-        battery: "Battery status"
+        battery: "Battery status",
+        weather: "Weather",
+        brightness: "Brightness",
+        taskbar: "Taskbar (running apps)"
     })
 
     // Control Center tab's own chip labels - a few of these read
