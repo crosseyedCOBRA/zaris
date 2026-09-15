@@ -52,7 +52,7 @@ this one.
      (`Tctl`, `edge`) specific to this machine's CPU/GPU. Check
      `grep . /sys/class/hwmon/hwmon*/temp*_label` on your own machine and
      adjust if different — the comments in `Bar.qml` mark exactly where.
-   - The bar's logo (`assets/artix.svg`) is the Artix Linux logo, since
+   - The bar's logo (`assets/arch-logo.svg`) is the Arch Linux logo, since
      that's what this reference machine runs — swap it for your own
      distro's icon or anything else you'd rather click to open the launcher.
 
@@ -75,7 +75,10 @@ See [../DEPENDENCIES.md](../DEPENDENCIES.md) for exact package names
 
 ## Known machine-specific bits
 
-Nothing here that's flagged above should stop this from running elsewhere,
-but it has only ever run on one machine (3 monitors, AMD CPU+GPU, Artix
-Linux/OpenRC) — see the `[Beta blocker]` items in `ROADMAP.md` for what's
-still unverified on different hardware/distros.
+Nothing here that's flagged above should stop this from running elsewhere.
+Run on two machines so far: originally Artix Linux/OpenRC (3 monitors,
+AMD CPU+GPU), now Arch Linux/systemd (4 monitors, one rotated) — see
+`ROADMAP.md`'s "Verify on a non-OpenRC (systemd) system" entry for what
+that switch actually caught (a real systemd/exec-once audio race, not
+just a clean pass). See the remaining `[Beta blocker]` items in
+`ROADMAP.md` for what's still unverified elsewhere.

@@ -37,14 +37,17 @@ import Quickshell.Io
 //   "launcherIcon": absolute path - the bar's launcher-toggle icon (any
 //                            image file, not limited to the bundled
 //                            assets). Empty/missing falls back to
-//                            zaris-logo.png - the same image
+//                            arch-logo.svg - the same image
 //                            DockLauncherIcon.qml shows for its own launcher
 //                            icon (that file now reads this same property
 //                            rather than hardcoding a second, independent
 //                            default, so the two can never drift apart
-//                            again) - swapped in from the original
-//                            artix.svg default per explicit request, to
-//                            match what the dock was already showing.
+//                            again). Previously zaris-logo.png, before that
+//                            artix.svg - swapped per explicit request each
+//                            time the reference machine's own distro
+//                            changed (Artix -> plain Zaris branding ->
+//                            Arch), copied straight from this machine's own
+//                            /usr/share/pixmaps/archlinux-logo.svg.
 //   "controlCenterIcon": absolute path - the bar's Control Center launcher
 //                            icon, same shape as launcherIcon above.
 //                            Empty/missing falls back to
@@ -85,7 +88,7 @@ QtObject {
         const h = configFile.adapter.height
         return (typeof h === "number" && h >= 32 && h <= 96) ? Math.round(h) : 44
     }
-    readonly property string launcherIcon: configFile.adapter.launcherIcon || (Quickshell.env("HOME") + "/.config/quickshell/assets/zaris-logo.png")
+    readonly property string launcherIcon: configFile.adapter.launcherIcon || (Quickshell.env("HOME") + "/.config/quickshell/assets/arch-logo.svg")
     readonly property string controlCenterIcon: configFile.adapter.controlCenterIcon || (Quickshell.env("HOME") + "/.config/quickshell/assets/zaris-logo-circle-glow.png")
 
     function setLayoutMode(val) {

@@ -48,7 +48,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["kernel", "cpu", "cpuTemp", "gpuTemp", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications"]
 
     // The subset Settings' new "Bar Modules" tab lets you add/reorder -
     // every id above except mediaPlayer, which has no bar-side rendering
@@ -103,6 +103,15 @@ QtObject {
             // somewhere out of the box even with this disabled. Still a
             // real, re-enableable bar module - toggle "Enabled" in
             // Settings' Modules tab to bring it back into the bar too.
+            // Previously fixed leftmost bar elements (Bar.qml's own
+            // hardcoded Image+MouseArea and Workspaces{}), now real
+            // modules like everything else - explicit section: "left"/
+            // order since every other module below defaults (via
+            // section()'s own fallback) to "right", and these two need to
+            // keep rendering first, on the left, for anyone who's never
+            // touched Settings' Bar Modules tab.
+            property var launcher: ({ enabled: true, screens: "all", tray: false, section: "left", order: 0 })
+            property var workspaces: ({ enabled: true, screens: "all", tray: false, section: "left", order: 1 })
             property var kernel: ({ enabled: false, screens: "primary", tray: false })
             property var cpu: ({ enabled: true, screens: "all", tray: false })
             property var cpuTemp: ({ enabled: true, screens: "all", tray: false })

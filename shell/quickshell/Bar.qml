@@ -123,49 +123,18 @@ Variants {
             Item {
                 anchors.fill: parent
 
-                // --- left: logo + workspaces, then any left-assigned modules ---
+                // --- left: launcher + workspaces + any other left-assigned
+                // modules, all through the same module system now (see
+                // ModulesConfig.qml/BarStatusModules.qml) - both default to
+                // section "left", order 0/1, so this reproduces the
+                // original fixed logo+workspaces layout for anyone who's
+                // never touched Settings' Bar Modules tab, while making
+                // them genuinely toggleable/reorderable/movable like every
+                // other module.
                 Row {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 14
-
-                    Row {
-                        spacing: 10
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Image {
-                            source: "file://" + BarConfig.launcherIcon
-                            width: 22
-                            height: 22
-                            // Without this, a large custom user image (a
-                            // real photo, not a small bundled icon) gets
-                            // decoded at its full native resolution and
-                            // then minified by the GPU at render time,
-                            // which reads as visibly pixelated/aliased -
-                            // reported live specifically on a circular
-                            // custom image. Setting sourceSize makes Qt do
-                            // the downscale once, at load time, with a
-                            // real resampling filter instead. 2x the
-                            // display size for a crisp look on HiDPI
-                            // without decoding arbitrarily large sources
-                            // needlessly - harmless on already-small
-                            // sources (including SVGs, where this also
-                            // controls rasterization resolution) since
-                            // it's just a cap, never an upscale.
-                            sourceSize.width: 44
-                            sourceSize.height: 44
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: LauncherState.visible = !LauncherState.visible
-                            }
-                        }
-
-                        Workspaces {
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
 
                     BarStatusModules {
                         barPanel: panel

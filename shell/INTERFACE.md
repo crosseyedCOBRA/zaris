@@ -93,7 +93,7 @@ repo split happens, not solved by this pass.
 - `$HOME/.local/bin/zaris` is what `shell/zaris/start-zaris.sh` execs —
   fine for Zaris itself, but obviously specific to it; a different WM
   needs its own launch script, not this one.
-- The bar's launcher-button logo (`assets/artix.svg`) and the hardcoded
+- The bar's launcher-button logo (`assets/arch-logo.svg`) and the hardcoded
   hwmon sensor labels in `Bar.qml` are reference-machine artifacts, not
   interface requirements — both already called out as swap-before-first-
   launch items in `shell/README.md`.

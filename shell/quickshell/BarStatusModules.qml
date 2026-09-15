@@ -58,6 +58,8 @@ Row {
                 anchors.verticalCenter: parent.verticalCenter
                 sourceComponent: {
                     switch (delegateItem.modelData) {
+                    case "launcher": return launcherComponent
+                    case "workspaces": return workspacesComponent
                     case "kernel": return kernelComponent
                     case "cpu": return cpuComponent
                     case "cpuTemp": return cpuTempComponent
@@ -87,6 +89,40 @@ Row {
         visible: root.section === "right"
         textColor: Colors.purple
         anchors.verticalCenter: parent.verticalCenter
+    }
+
+    Component {
+        id: launcherComponent
+        Item {
+            // Image's own implicitWidth/Height are read-only (follow the
+            // source's native pixel size, not the explicit render size
+            // below) - wrapped in a plain Item so the delegate's own
+            // width/height (bound to loader.item.implicitWidth/Height)
+            // gets the real 22x22 render size instead.
+            implicitWidth: 22
+            implicitHeight: 22
+
+            Image {
+                anchors.fill: parent
+                source: "file://" + BarConfig.launcherIcon
+                // Downscales a large custom user image at load time
+                // instead of letting the GPU minify it at render time
+                // (pixelated) - see Bar.qml's own former copy of this
+                // Image for the fuller explanation.
+                sourceSize.width: 44
+                sourceSize.height: 44
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: LauncherState.visible = !LauncherState.visible
+            }
+        }
+    }
+
+    Component {
+        id: workspacesComponent
+        Workspaces {}
     }
 
     Component {

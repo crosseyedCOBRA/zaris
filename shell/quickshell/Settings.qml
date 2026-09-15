@@ -298,6 +298,8 @@ PopupWindow {
     ]
 
     readonly property var moduleNames: ({
+        launcher: "Launcher",
+        workspaces: "Workspaces",
         kernel: "Kernel version",
         cpu: "CPU load",
         cpuTemp: "CPU temperature",
