@@ -454,6 +454,26 @@ CWindow* Events::remapFloatingWindow(int windowID, int forcemonitor) {
             } catch (...) {
                 Debug::log(LOG, "Rule topright failed, rule: " + rule.szRule + "=" + rule.szValue);
             }
+        } else if (rule.szRule.find("topleft") == 0) {
+            // Mirror of "topright" - anchored to the monitor's top-left
+            // corner instead, for desktop widgets (Clock.qml and friends)
+            // that want a fixed corner regardless of the monitor's actual
+            // resolution. marginX/marginY are the gap from the monitor's
+            // left/top edges to the window's left/top edges.
+            try {
+                const auto VALUE = rule.szRule.substr(rule.szRule.find(" ") + 1);
+                const auto MARGINX = stoi(VALUE.substr(0, VALUE.find(" ")));
+                const auto MARGINY = stoi(VALUE.substr(VALUE.find(" ") + 1));
+
+                Debug::log(LOG, "Rule topleft, applying to window " + std::to_string(windowID));
+
+                const auto& MONITOR = g_pWindowManager->monitors[CURRENTSCREEN];
+                PWINDOWINARR->setDefaultPosition(Vector2D(
+                    MONITOR.vecPosition.x + MARGINX,
+                    MONITOR.vecPosition.y + MARGINY));
+            } catch (...) {
+                Debug::log(LOG, "Rule topleft failed, rule: " + rule.szRule + "=" + rule.szValue);
+            }
         } else if (rule.szRule.find("bottomcenter") == 0) {
             // Like "topright", but anchored to the bottom-center of the
             // monitor instead - for the floating-mode dock (Dock.qml),

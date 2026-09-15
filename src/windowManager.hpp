@@ -85,6 +85,16 @@ public:
     std::vector<xcb_window_t>   alwaysOnTopWindows;
     void                        reassertAlwaysOnTop();
 
+    // Desktop widgets (Clock/Weather/Media/SystemStats, the "alwaysbottom"
+    // window rule) - the mirror image of alwaysOnTopWindows above: normal,
+    // non-override-redirect FloatingWindows (unlike the popups above)
+    // populated once in doPostCreationChecks() rather than per-map-event,
+    // reasserted every tick by reassertAlwaysOnBottom() via
+    // XCB_STACK_MODE_BELOW so a newly mapped/raised window always ends up
+    // on top of them rather than the other way around.
+    std::vector<xcb_window_t>   alwaysOnBottomWindows;
+    void                        reassertAlwaysOnBottom();
+
     CWindow*                    getWindowFromDrawable(int64_t);
     void                        addWindowToVectorSafe(CWindow);
     void                        removeWindowFromVectorSafe(int64_t);
@@ -120,6 +130,7 @@ public:
     void                        setAllWindowsDirty();
     void                        setAllFloatingWindowsTop();
     void                        setAWindowTop(xcb_window_t);
+    void                        setAWindowBottom(xcb_window_t);
 
     SMonitor*                   getMonitorFromWindow(CWindow*);
     SMonitor*                   getMonitorFromCursor();

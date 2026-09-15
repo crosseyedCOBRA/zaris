@@ -151,12 +151,14 @@ void handleWindowRule(const std::string& command, const std::string& value) {
         && RULE.find("move") != 0
         && RULE.find("size") != 0
         && RULE.find("nointerventions") != 0
+        && RULE.find("alwaysbottom") != 0
         && RULE.find("pseudo") != 0
         && RULE.find("fullscreen") != 0
         && RULE.find("workspace") != 0
         && RULE.find("monitor") != 0
         && RULE.find("center") != 0
         && RULE.find("topright") != 0
+        && RULE.find("topleft") != 0
         && RULE.find("bottomcenter") != 0
         && RULE.find("topcenter") != 0
         && RULE.find("leftcenter") != 0

@@ -242,6 +242,10 @@ bool CWindowManager::handleEvent() {
     // comment and Events::eventMapNotify for how these get tracked).
     reassertAlwaysOnTop();
 
+    // Keep desktop widgets (Clock/Weather/Media/SystemStats) below every
+    // other window (see reassertAlwaysOnBottom's own comment).
+    reassertAlwaysOnBottom();
+
     // Sanity checks
     for (const auto active : activeWorkspaces) {
         sanityCheckOnWorkspace(active);
@@ -2060,6 +2064,37 @@ void CWindowManager::setAWindowTop(xcb_window_t window) {
     Events::ignoredEvents.push_back(COOKIE.sequence);
 }
 
+void CWindowManager::setAWindowBottom(xcb_window_t window) {
+    Values[0] = XCB_STACK_MODE_BELOW;
+    const auto COOKIE = xcb_configure_window(g_pWindowManager->DisplayConnection, window, XCB_CONFIG_WINDOW_STACK_MODE, Values);
+    Events::ignoredEvents.push_back(COOKIE.sequence);
+}
+
+void CWindowManager::reassertAlwaysOnBottom() {
+    if (alwaysOnBottomWindows.empty())
+        return;
+
+    for (auto it = alwaysOnBottomWindows.begin(); it != alwaysOnBottomWindows.end();) {
+        const auto ATTRSREPLY = xcb_get_window_attributes_reply(DisplayConnection, xcb_get_window_attributes(DisplayConnection, *it), NULL);
+
+        if (!ATTRSREPLY || ATTRSREPLY->map_state != XCB_MAP_STATE_VIEWABLE) {
+            if (ATTRSREPLY)
+                free(ATTRSREPLY);
+            it = alwaysOnBottomWindows.erase(it);
+            continue;
+        }
+
+        free(ATTRSREPLY);
+
+        // Unlike reassertAlwaysOnTop(), no fullscreen-coverage carve-out -
+        // a fullscreen window covering a desktop widget is exactly the
+        // expected behavior, not something to fight.
+        setAWindowBottom(*it);
+
+        ++it;
+    }
+}
+
 void CWindowManager::reassertAlwaysOnTop() {
     if (alwaysOnTopWindows.empty())
         return;
@@ -2176,6 +2211,16 @@ bool CWindowManager::shouldBeFloatedOnInit(int64_t window) {
             PWINDOW->setImmovable(true);
             return true;
         }
+        else if (rule.szRule == "alwaysbottom") {
+            // Desktop widgets (Clock/Weather/Media/SystemStats): same
+            // "don't tile it, don't let the tiling engine touch it" needs
+            // as nointerventions, plus AlwaysBottom itself (read by
+            // remapFloatingWindow() to populate alwaysOnBottomWindows).
+            PWINDOW->setNoInterventions(true);
+            PWINDOW->setImmovable(true);
+            PWINDOW->setAlwaysBottom(true);
+            return true;
+        }
     }
 
     return false;
@@ -2225,6 +2270,16 @@ void CWindowManager::doPostCreationChecks(CWindow* pWindow) {
     const auto NAME = getClassName(window);
     if (NAME.first == "Error" && NAME.second == "Error") {
         Debug::log(WARN, "Window created but has a class of NULL?");
+    }
+
+    // Desktop widgets: the "alwaysbottom" window rule already set this
+    // flag back in shouldBeFloatedOnInit() - track it here the same way
+    // alwaysOnTopWindows tracks Quickshell's override-redirect popups, so
+    // reassertAlwaysOnBottom() (called every event-loop tick, mirroring
+    // reassertAlwaysOnTop()) keeps lowering it below whatever else maps.
+    if (pWindow->getAlwaysBottom() &&
+        std::find(alwaysOnBottomWindows.begin(), alwaysOnBottomWindows.end(), window) == alwaysOnBottomWindows.end()) {
+        alwaysOnBottomWindows.push_back(window);
     }
 
     Debug::log(LOG, "Post creation checks ended");

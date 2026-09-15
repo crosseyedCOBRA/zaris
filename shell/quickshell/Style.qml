@@ -32,6 +32,13 @@ Singleton {
     readonly property real fontSizeXXL: 18 * DefaultsConfig.fontScale
     readonly property real fontSizeXXXL: 24 * DefaultsConfig.fontScale
 
+    // Desktop widgets (Clock/Weather/Media/SystemStats) sit directly on the
+    // wallpaper at a much larger scale than anything else in the shell -
+    // the bar/panel scale above tops out at fontSizeXXXL (24), too small to
+    // read as a desktop centerpiece.
+    readonly property real fontSizeDesktopL: 40 * DefaultsConfig.fontScale
+    readonly property real fontSizeDesktopXL: 64 * DefaultsConfig.fontScale
+
     readonly property int fontWeightRegular: 400
     readonly property int fontWeightMedium: 500
     readonly property int fontWeightSemiBold: 600

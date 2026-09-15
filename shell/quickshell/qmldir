@@ -37,6 +37,7 @@ singleton BarConfig 1.0 BarConfig.qml
 singleton DockItemsService 1.0 DockItemsService.qml
 singleton PowerMenuPanelState 1.0 PowerMenuPanelState.qml
 singleton NetworkInterfacesService 1.0 NetworkInterfacesService.qml
+singleton DesktopWidgetsConfig 1.0 DesktopWidgetsConfig.qml
 LauncherContent 1.0 LauncherContent.qml
 Launcher 1.0 Launcher.qml
 BarClockText 1.0 BarClockText.qml
@@ -109,6 +110,7 @@ PowerMenuPanel 1.0 PowerMenuPanel.qml
 ControlCenter 1.0 ControlCenter.qml
 Settings 1.0 Settings.qml
 OSD 1.0 OSD.qml
+DesktopClock 1.0 DesktopClock.qml
 DockIcons 1.0 DockIcons.qml
 DockContent 1.0 DockContent.qml
 DockLauncherIcon 1.0 DockLauncherIcon.qml

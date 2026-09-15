@@ -19,6 +19,7 @@ ShellRoot {
     ControlCenter {}
     Settings {}
     OSD {}
+    DesktopClock {}
     Dock {}
     PinDialog {}
     BluetoothPanel {}

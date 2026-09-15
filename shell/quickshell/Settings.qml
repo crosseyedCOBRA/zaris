@@ -282,6 +282,7 @@ PopupWindow {
         { id: "wallpaper", label: "Wallpaper", icon: "" },
         { id: "bar", label: "Bar", icon: "" },
         { id: "dock", label: "Dock", icon: "" },
+        { id: "desktopWidgets", label: "Desktop Widgets", icon: "" },
         { id: "audio", label: "Audio", icon: "" },
         { id: "notifications", label: "Notifications", icon: "" },
         { id: "osd", label: "OSD", icon: "" },
@@ -2149,6 +2150,45 @@ PopupWindow {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 visible: DockConfig.enabled && DockConfig.mode === "floating"
+                                color: Colors.textMuted
+                                pointSize: Style.fontSizeXS
+                                topPadding: 6
+                            }
+                        }
+
+                        // ==================== Desktop Widgets ====================
+                        // One toggle per DesktopWidgetsConfig.widgetIds entry - just
+                        // "Clock" for now (DesktopClock.qml), more appear here as
+                        // Weather/Media/SystemStats get built (see ROADMAP.md).
+                        Column {
+                            width: parent.width
+                            spacing: 4
+                            visible: settingsWindow.activeCategory === "desktopWidgets"
+
+                            Row {
+                                width: parent.width
+                                height: 32
+                                spacing: 12
+
+                                NText {
+                                    text: "Clock"
+                                    width: 170
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Colors.text
+                                    pointSize: Style.fontSizeM
+                                }
+
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: DesktopWidgetsConfig.isEnabled("clock")
+                                    onToggled: newChecked => DesktopWidgetsConfig.setEnabled("clock", newChecked)
+                                }
+                            }
+
+                            NText {
+                                text: "A clock that sits directly on the wallpaper, always behind every other window. Fixed top-left position for now."
+                                width: parent.width
+                                wrapMode: Text.WordWrap
                                 color: Colors.textMuted
                                 pointSize: Style.fontSizeXS
                                 topPadding: 6
