@@ -2204,6 +2204,64 @@ PopupWindow {
                                 pointSize: Style.fontSizeXS
                                 topPadding: 6
                             }
+
+                            Row {
+                                width: parent.width
+                                height: 32
+                                spacing: 12
+
+                                NText {
+                                    text: "Media Player"
+                                    width: 170
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Colors.text
+                                    pointSize: Style.fontSizeM
+                                }
+
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: DesktopWidgetsConfig.isEnabled("media")
+                                    onToggled: newChecked => DesktopWidgetsConfig.setEnabled("media", newChecked)
+                                }
+                            }
+
+                            NText {
+                                text: "Shows whatever's currently playing (same data as Control Center's media card). Only visible while something's actually playing. Fixed bottom-left position for now."
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: Colors.textMuted
+                                pointSize: Style.fontSizeXS
+                                topPadding: 6
+                            }
+
+                            Row {
+                                width: parent.width
+                                height: 32
+                                spacing: 12
+
+                                NText {
+                                    text: "System Stats"
+                                    width: 170
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Colors.text
+                                    pointSize: Style.fontSizeM
+                                }
+
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: DesktopWidgetsConfig.isEnabled("systemStats")
+                                    onToggled: newChecked => DesktopWidgetsConfig.setEnabled("systemStats", newChecked)
+                                }
+                            }
+
+                            NText {
+                                text: "CPU/RAM/CPU temp/GPU temp. Fixed top-right position for now."
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: Colors.textMuted
+                                pointSize: Style.fontSizeXS
+                                topPadding: 6
+                            }
                         }
 
                         // ==================== Audio ====================

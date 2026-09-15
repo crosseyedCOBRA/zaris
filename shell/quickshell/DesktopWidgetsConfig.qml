@@ -15,10 +15,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    // Only "clock" exists so far (DesktopClock.qml) - weather/media/
-    // systemStats get added here once those widgets exist, same as
-    // ModulesConfig.moduleIds growing over time.
-    readonly property var widgetIds: ["clock"]
+    readonly property var widgetIds: ["clock", "media", "systemStats"]
 
     property FileView configFile: FileView {
         path: Quickshell.env("HOME") + "/.config/quickshell/desktopwidgets.json"

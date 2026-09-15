@@ -111,6 +111,8 @@ ControlCenter 1.0 ControlCenter.qml
 Settings 1.0 Settings.qml
 OSD 1.0 OSD.qml
 DesktopClock 1.0 DesktopClock.qml
+DesktopMedia 1.0 DesktopMedia.qml
+DesktopSystemStats 1.0 DesktopSystemStats.qml
 WeatherIndicator 1.0 WeatherIndicator.qml
 BrightnessIndicator 1.0 BrightnessIndicator.qml
 ColorPicker 1.0 ColorPicker.qml

@@ -20,6 +20,8 @@ ShellRoot {
     Settings {}
     OSD {}
     DesktopClock {}
+    DesktopMedia {}
+    DesktopSystemStats {}
     Dock {}
     PinDialog {}
     BluetoothPanel {}
