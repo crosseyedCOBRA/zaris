@@ -27,13 +27,19 @@ QtObject {
 
         adapter: JsonAdapter {
             property int firstDayOfWeek: 0 // 0 = Sunday, 1 = Monday
-            property string dateFormat: "dddd MMMM d yyyy"
+            // Short weekday only ("Tue"), not the old full
+            // "dddd MMMM d yyyy" - that read as long for a bar clock next
+            // to a full time (a fresh install's whole point is to look
+            // presentable out of the box, not like a wall calendar).
+            // "dddd MMMM d yyyy" is still a picker option below for
+            // anyone who wants it back.
+            property string dateFormat: "ddd"
             property string timeFormat: "HH:mm"
         }
     }
 
     readonly property int firstDayOfWeek: configFile.adapter.firstDayOfWeek === 1 ? 1 : 0
-    readonly property string dateFormat: configFile.adapter.dateFormat || "dddd MMMM d yyyy"
+    readonly property string dateFormat: configFile.adapter.dateFormat || "ddd"
     readonly property string timeFormat: configFile.adapter.timeFormat || "HH:mm"
 
     // Combined format for the bar clock (BarClockText.qml) - date and time
@@ -48,7 +54,7 @@ QtObject {
     // example that could go stale or not match the user's locale.
     readonly property var dateFormatOptions: {
         const now = new Date()
-        const formats = ["dddd MMMM d yyyy", "ddd, MMM d yyyy", "MM/dd/yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "d MMMM yyyy"]
+        const formats = ["ddd", "dddd MMMM d yyyy", "ddd, MMM d yyyy", "MM/dd/yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "d MMMM yyyy"]
         return formats.map(function (f) { return { key: f, name: Qt.formatDateTime(now, f) } })
     }
 
