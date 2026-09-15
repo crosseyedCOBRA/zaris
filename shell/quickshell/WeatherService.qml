@@ -239,7 +239,7 @@ QtObject {
         }
         xhr.open("GET", "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon
             + "&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,weather_code"
-            + "&temperature_unit=fahrenheit&timezone=auto&forecast_days=5")
+            + "&temperature_unit=fahrenheit&timezone=auto&forecast_days=6")
         xhr.send()
     }
 

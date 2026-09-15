@@ -58,10 +58,11 @@ Column {
         }
     }
 
-    // 5-day forecast - WeatherService.forecastDays[0] is today (same data
-    // as the current-conditions line above, just restated as the first
-    // cell here for a consistent row rather than a special-cased 4-day
-    // tail), the rest are the next 4 days.
+    // 6-day forecast (bumped from 5 to match Noctalia v5's own reference
+    // Control Center, supplied live) - WeatherService.forecastDays[0] is
+    // today (same data as the current-conditions line above, just restated
+    // as the first cell here for a consistent row rather than a
+    // special-cased tail), the rest are the next 5 days.
     Row {
         width: parent.width
         visible: WeatherService.haveData && WeatherService.forecastDays.length > 0
@@ -72,7 +73,7 @@ Column {
             Column {
                 id: dayCell
                 required property var modelData
-                width: root.width / 5
+                width: root.width / 6
                 spacing: 2
 
                 NText {

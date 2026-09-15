@@ -104,25 +104,24 @@ PopupWindow {
     // visible padding and a bit of background definition around its
     // Control Center rather than content running edge-to-edge.
     implicitWidth: 440
-    // Was 830 (tall enough for every optional row/dial visible at once,
-    // see the comment above this property) - reported live as the 5-day
-    // forecast still being cut off a bit even after the tileHeight trim
-    // above reclaimed ~40px for it, so bumped further to 875 for real
-    // breathing room. Still deliberately not the 900 the old Calendar
-    // experiment needed (see below) - this grows *down* from the bar's
-    // own fixed top anchor for a top-positioned bar (`BarConfig.
-    // popupAnchorY`'s "top" branch returns a fixed offset off the bar
-    // itself, independent of implicitHeight, unlike its "bottom" branch)
-    // per an explicit request to grow the panel from the bottom
-    // specifically, not shift its top edge. A Calendar section was
-    // briefly added below the gauges cluster (which needed bumping this to
-    // 900 plus wrapping everything in a scrolling NScrollView so the taller
-    // content wouldn't clip past a 1080px-tall monitor's usable height) but
-    // the user reconsidered - Control Center should never require
-    // scrolling, full stop - so the Calendar section was pulled back out
-    // (it stays in CalendarFlyout.qml, under the bar's clock) rather than
-    // solved with a scrollbar.
-    implicitHeight: 875
+    // Was 875 (tuned for the old toggle grid's large labeled 2-column
+    // tiles - see that section's own history for why it needed that much).
+    // Recalibrated down to 660 once the toggle grid became two compact
+    // icon-only pill rows (freed roughly 200px on its own) even after
+    // adding back a previously-broken audio section and a new visualizer
+    // row - reported live as a large, obviously dead gap at the panel's
+    // own bottom edge below the last real content (confirmed via direct
+    // pixel sampling down the panel's background: real content ended
+    // around 560px into the panel, nearly 300px short of the old fixed
+    // 875). 660 leaves a real, deliberate margin above that measured
+    // content height instead of matching it exactly - still "fixed, sized
+    // generously for the tallest real state" per this property's own
+    // long-standing reasoning above, just recalibrated for the new
+    // layout rather than carrying the old one's number forward
+    // unexamined. Verified live afterward with every optional section
+    // visible at once (media + visualizer + full gauges + audio sliders +
+    // 6-day forecast) - no clipping.
+    implicitHeight: 660
 
     anchor.item: ControlCenterState.barItem
     anchor.rect.x: ControlCenterState.barItem ? ControlCenterState.barItem.width - implicitWidth : 0
@@ -411,10 +410,25 @@ PopupWindow {
                 }
             }
 
+            // Real bug fixed here, found comparing against Noctalia's own
+            // reference Control Center (which always shows full Output/
+            // Input device sliders, alongside a separate, independent
+            // compact volume icon in its own bar): this row used to also
+            // require ModulesConfig.showInTray("volume", ...), tying it to
+            // whether the *bar's* own volume icon was configured as a tray
+            // module - "volume"'s own default is a bar icon
+            // (tray: false, see ModulesConfig.qml), so on an unmodified
+            // install this whole audio section silently never rendered at
+            // all, regardless of whether real, ready sink/source devices
+            // existed. Audio control belongs in Control Center as its own
+            // first-class section, not gated behind a setting that governs
+            // a completely different location's icon - removed the
+            // showInTray("volume") condition, leaving only the real
+            // "do I have anything to show" check.
             Row {
                 width: root.contentWidth
                 spacing: 14
-                visible: ModulesConfig.showInTray("volume", ControlCenterState.panel) && ((!!root.pwSink && root.pwSink.ready) || (!!root.pwSource && root.pwSource.ready))
+                visible: (!!root.pwSink && root.pwSink.ready) || (!!root.pwSource && root.pwSource.ready)
 
                 Column {
                     width: (parent.width - parent.spacing) / 2
@@ -541,238 +555,203 @@ PopupWindow {
             }
 
 
-            // Wrapped in a plain Item (rather than giving the Grid itself
-            // `width: root.contentWidth`) so the tiles can be truly
-            // centered - a Grid lays its children out at their natural
-            // size starting from its own x origin, so an explicit width
-            // wider than that natural size (contentWidth's 380 vs. this
-            // grid's actual 2*tileWidth+spacing = 310) just left a gap on
-            // the right instead of centering, which read as the whole
-            // toggle grid being "smushed" to the left side of the panel.
+            // Restructured from one continuous 2-column grid of large
+            // labeled tiles into two compact, icon-only pill groups side by
+            // side - matching Noctalia v5's own Control Center reference
+            // (supplied live) far more closely than the old grid did, and
+            // considerably more compact besides. Labels are gone in favor
+            // of tooltips (TooltipService, same mechanism NIconButton
+            // itself already uses) - a quick glance no longer needs six-plus
+            // lines of small caption text competing with the icons for
+            // attention. Two fixed pills rather than a variable-count wrap:
+            // "System" (Power Profile, Battery, Stay Awake, Night Light) and
+            // "Connectivity" (Ethernet, Wifi, Clipboard, Bluetooth) - a
+            // stable category split independent of whatever order the user
+            // has actually dragged the reorderable four into via Settings'
+            // Control Center tab, each icon still individually visible/
+            // hidden exactly as before.
             Item {
                 width: root.contentWidth
-                height: toggleGrid.implicitHeight
+                height: Math.max(systemPill.height, connectivityPill.height)
 
-                Grid {
-                    id: toggleGrid
+                Row {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    columns: 2
                     spacing: 10
 
-                    // Power profile - a single button that cycles through the
-                // three power-profiles-daemon profiles on each click,
-                // rather than the three separate tiles this shipped with
-                // originally (a user request after seeing that version
-                // live - one tile fits the grid's existing visual language
-                // better than a wide three-way row). See
-                // PowerProfileState.qml's own header comment for why this
-                // is safe to ship even though that daemon isn't installed
-                // on this machine yet.
-                Rectangle {
-                    width: root.tileWidth
-                    height: root.tileHeight
-                    radius: Style.radiusS
-                    color: powerProfileArea.containsMouse ? Colors.pillActive : Colors.pill
+                    Rectangle {
+                        id: systemPill
+                        width: systemRow.implicitWidth + 16
+                        height: systemRow.implicitHeight + 16
+                        radius: height / 2
+                        color: Colors.pill
 
-                    Behavior on color {
-                        ColorAnimation { duration: Style.animationFast }
-                    }
+                        Row {
+                            id: systemRow
+                            anchors.centerIn: parent
+                            spacing: 2
 
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 4
+                            // Power profile - cycles through the three
+                            // power-profiles-daemon profiles on each click
+                            // (see PowerProfileState.qml's own header
+                            // comment for why this is safe to ship even
+                            // though that daemon isn't installed on this
+                            // machine yet).
+                            NIconButton {
+                                baseSize: 34
+                                tooltipText: "Power Profile: " + PowerProfileState.profileLabel(PowerProfileState.currentProfile)
+                                colorBg: "transparent"
+                                colorBorder: "transparent"
+                                colorFg: Colors.textMuted
+                                colorFgHover: Colors.text
+                                colorBgHover: Colors.pillActive
+                                // Same measured ~6px rightward ink offset on
+                                // the "balance-scale" glyph this tile always
+                                // shows in practice (power-profiles-daemon
+                                // isn't installed here) as the old tile's own
+                                // NIcon carried - see this file's earlier
+                                // history for how that offset was measured.
+                                iconOffsetX: (PowerProfileState.currentProfile !== "power-saver" && PowerProfileState.currentProfile !== "performance") ? -6 : 0
+                                icon: PowerProfileState.profileIcon(PowerProfileState.currentProfile)
+                                onClicked: PowerProfileState.cycleProfile()
+                            }
 
-                        NIcon {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            // Reported live: this tile always shows
-                            // "balanced" in practice (power-profiles-daemon
-                            // isn't installed on this machine, see this
-                            // whole block's own header comment, so
-                            // currentProfile never actually leaves its
-                            // default) and that glyph (U+F24E, "balance-
-                            // scale") sits visibly right of center. Measured
-                            // via a dedicated Xephyr test harness at 8x the
-                            // real size: a genuine ~6px rightward ink
-                            // offset, not a guess. Scoped to the one glyph
-                            // actually measured, via horizontalCenterOffset
-                            // (this Column-anchored NIcon has no anchors.fill
-                            // to margin-nudge the way NIconButton's own
-                            // glyphs do, but Qt's anchor system already has
-                            // a purpose-built offset for exactly this next
-                            // to a plain anchors.horizontalCenter) - the
-                            // other two profile icons weren't verified to
-                            // have the same issue, so they're left at 0
-                            // rather than guessed.
-                            // Matches profileIcon()/profileLabel()'s own
-                            // fallback condition, not a literal === "balanced"
-                            // check - currentProfile actually defaults to ""
-                            // (power-profiles-daemon isn't installed on this
-                            // machine, see this whole block's own header
-                            // comment), which is what displays as "Balanced"
-                            // in practice, not the literal string "balanced".
-                            anchors.horizontalCenterOffset: (PowerProfileState.currentProfile !== "power-saver" && PowerProfileState.currentProfile !== "performance") ? -6 : 0
-                            icon: PowerProfileState.profileIcon(PowerProfileState.currentProfile)
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXL
-                        }
+                            // Battery - navigates to Settings' Battery tab,
+                            // same as the old tile (it isn't a toggle,
+                            // there's nothing to switch on/off). Battery's
+                            // own gauge in the CPU/temp/RAM cluster further
+                            // down this file is untouched.
+                            NIconButton {
+                                baseSize: 34
+                                visible: BatteryService.batteryPresent
+                                tooltipText: "Battery"
+                                colorBg: "transparent"
+                                colorBorder: "transparent"
+                                colorFg: Colors.textMuted
+                                colorFgHover: Colors.text
+                                colorBgHover: Colors.pillActive
+                                icon: BatteryService.batteryIcon
+                                onClicked: {
+                                    SettingsState.requestedCategory = "battery"
+                                    SettingsState.targetItem = ControlCenterState.barItem
+                                    // Close-before-open, same fix and same
+                                    // reason as the Settings gear button
+                                    // above.
+                                    ControlCenterState.visible = false
+                                    SettingsState.visible = true
+                                }
+                            }
 
-                        NText {
-                            text: PowerProfileState.profileLabel(PowerProfileState.currentProfile)
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXS
-                        }
-                    }
+                            Repeater {
+                                model: ModulesConfig.orderedTrayModules(ControlCenterState.panel).filter(function (id) { return id === "stayAwake" || id === "nightLight" })
 
-                    MouseArea {
-                        id: powerProfileArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: PowerProfileState.cycleProfile()
-                    }
-                }
+                                Item {
+                                    id: systemTileDelegate
+                                    required property string modelData
+                                    width: 34
+                                    height: 34
+                                    clip: true // hides the loaded component's own conditional state-text ("awake"/"night") - see this section's header comment on why these are icon-only now
 
-                // Battery - fixed second, in the slot the Do Not Disturb
-                // tile used to occupy (see ModulesConfig.trayModuleIds'
-                // own comment for why DND's tile was removed and its
-                // toggle moved onto the bar's notification bell instead).
-                // Not part of the reorderable Repeater below - it isn't a
-                // toggle (nothing to switch on/off), it navigates to
-                // Settings' Battery tab on click, the same
-                // SettingsState.requestedCategory mechanism
-                // AudioMixerPanel.qml's own gear button and the Settings
-                // gear itself already use. Battery's own gauge presence in
-                // the CPU/CPU-temp/GPU-temp/Battery cluster further down
-                // this file is untouched - that's a separate, still-open
-                // vertical-layout redesign (see ROADMAP.md), not
-                // duplicated or removed by this tile.
-                Rectangle {
-                    width: root.tileWidth
-                    height: root.tileHeight
-                    radius: Style.radiusS
-                    color: batteryTileArea.containsMouse ? Colors.pillActive : Colors.pill
-                    visible: BatteryService.batteryPresent
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: width / 2
+                                        color: systemTileArea.containsMouse ? Colors.pillActive : "transparent"
+                                        Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                                    }
 
-                    Behavior on color {
-                        ColorAnimation { duration: Style.animationFast }
-                    }
+                                    Loader {
+                                        id: systemIconLoader
+                                        anchors.centerIn: parent
+                                        sourceComponent: {
+                                            switch (systemTileDelegate.modelData) {
+                                            case "stayAwake": return stayAwakeIconComponent
+                                            case "nightLight": return nightLightIconComponent
+                                            default: return null
+                                            }
+                                        }
+                                    }
 
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 4
-
-                        NIcon {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            icon: BatteryService.batteryIcon
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXL
-                        }
-
-                        NText {
-                            text: "Battery"
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXS
+                                    MouseArea {
+                                        id: systemTileArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        onClicked: {
+                                            TooltipService.hide(systemTileDelegate)
+                                            if (systemIconLoader.item && systemIconLoader.item.toggle)
+                                                systemIconLoader.item.toggle()
+                                        }
+                                        onEntered: TooltipService.show(systemTileDelegate, systemTileDelegate.modelData === "stayAwake" ? "Stay Awake" : "Night Light", "auto")
+                                        onExited: TooltipService.hide(systemTileDelegate)
+                                    }
+                                }
+                            }
                         }
                     }
-
-                    MouseArea {
-                        id: batteryTileArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            SettingsState.requestedCategory = "battery"
-                            SettingsState.targetItem = ControlCenterState.barItem
-                            // Close-before-open, same fix and same reason as
-                            // the Settings gear button above.
-                            ControlCenterState.visible = false
-                            SettingsState.visible = true
-                        }
-                    }
-                }
-
-                // The other six quick-toggle tiles - previously seven
-                // near-identical hand-authored Rectangle blocks (DND, Night
-                // Light, Ethernet, Wifi, Clipboard, Bluetooth, plus Stay
-                // Awake now folded in here too), now one Repeater driven by
-                // Settings' new "Control Center" tab (ModulesConfig
-                // .trayModuleIds/.orderedTrayModules - see that file's own
-                // comment for exactly which modules qualify and why). Each
-                // of the six *ModulesConfig* module-toggle components
-                // (Dnd/NightLight/StayAwake/NetworkToggle/WifiToggle/
-                // BluetoothIndicator) shares the exact same
-                // clickable/textColor/activeColor/toggle() interface, so
-                // the click handler can call `loader.item.toggle()`
-                // polymorphically without needing to know which one it
-                // actually loaded - only Clipboard (a plain icon that opens
-                // ClipboardHistoryPanel, not a stateful toggle) needs its
-                // own special case.
-                Repeater {
-                    model: ModulesConfig.orderedTrayModules(ControlCenterState.panel)
 
                     Rectangle {
-                        id: tileDelegate
-                        required property string modelData
-                        width: root.tileWidth
-                        height: root.tileHeight
-                        radius: Style.radiusS
-                        color: tileArea.containsMouse ? Colors.pillActive : Colors.pill
+                        id: connectivityPill
+                        width: connectivityRow.implicitWidth + 16
+                        height: connectivityRow.implicitHeight + 16
+                        radius: height / 2
+                        color: Colors.pill
+                        visible: connectivityRow.implicitWidth > 0
 
-                        Behavior on color {
-                            ColorAnimation { duration: Style.animationFast }
-                        }
-
-                        Column {
+                        Row {
+                            id: connectivityRow
                             anchors.centerIn: parent
-                            spacing: 4
+                            spacing: 2
 
-                            Loader {
-                                id: iconLoader
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                sourceComponent: {
-                                    switch (tileDelegate.modelData) {
-                                    case "stayAwake": return stayAwakeIconComponent
-                                    case "nightLight": return nightLightIconComponent
-                                    case "network": return networkIconComponent
-                                    case "wifi": return wifiIconComponent
-                                    case "clipboard": return clipboardIconComponent
-                                    case "bluetooth": return bluetoothIconComponent
-                                    default: return null
+                            Repeater {
+                                model: ModulesConfig.orderedTrayModules(ControlCenterState.panel).filter(function (id) { return id === "network" || id === "wifi" || id === "clipboard" || id === "bluetooth" })
+
+                                Item {
+                                    id: connTileDelegate
+                                    required property string modelData
+                                    width: 34
+                                    height: 34
+                                    clip: true
+
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: width / 2
+                                        color: connTileArea.containsMouse ? Colors.pillActive : "transparent"
+                                        Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                                    }
+
+                                    Loader {
+                                        id: connIconLoader
+                                        anchors.centerIn: parent
+                                        sourceComponent: {
+                                            switch (connTileDelegate.modelData) {
+                                            case "network": return networkIconComponent
+                                            case "wifi": return wifiIconComponent
+                                            case "clipboard": return clipboardIconComponent
+                                            case "bluetooth": return bluetoothIconComponent
+                                            default: return null
+                                            }
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: connTileArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        onClicked: {
+                                            TooltipService.hide(connTileDelegate)
+                                            if (connTileDelegate.modelData === "clipboard")
+                                                ClipboardHistoryPanelState.visible = !ClipboardHistoryPanelState.visible
+                                            else if (connIconLoader.item && connIconLoader.item.toggle)
+                                                connIconLoader.item.toggle()
+                                        }
+                                        onEntered: {
+                                            const labels = { network: "Ethernet", wifi: "Wifi", clipboard: "Clipboard", bluetooth: "Bluetooth" }
+                                            TooltipService.show(connTileDelegate, labels[connTileDelegate.modelData] || "", "auto")
+                                        }
+                                        onExited: TooltipService.hide(connTileDelegate)
                                     }
                                 }
-                            }
-
-                            NText {
-                                text: {
-                                    switch (tileDelegate.modelData) {
-                                    case "stayAwake": return "Stay Awake"
-                                    case "nightLight": return "Night Light"
-                                    case "network": return "Ethernet"
-                                    case "wifi": return "Wifi"
-                                    case "clipboard": return "Clipboard"
-                                    case "bluetooth": return "Bluetooth"
-                                    default: return ""
-                                    }
-                                }
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                color: Colors.textMuted
-                                pointSize: Style.fontSizeXS
-                            }
-                        }
-
-                        MouseArea {
-                            id: tileArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                if (tileDelegate.modelData === "clipboard")
-                                    ClipboardHistoryPanelState.visible = !ClipboardHistoryPanelState.visible
-                                else if (iconLoader.item && iconLoader.item.toggle)
-                                    iconLoader.item.toggle()
                             }
                         }
                     }
-                }
                 }
             }
 
@@ -935,6 +914,19 @@ PopupWindow {
                 }
             }
 
+            // Weather - the one piece of the reference screenshot deferred
+            // out of the seventh Control Center pass specifically so it
+            // wouldn't be bundled into an already-large media/audio change.
+            // No ModulesConfig tray gate - unlike the toggle/quick-launch
+            // tiles above, there's no existing bar presence to preserve or
+            // hide, and a location/weather API is opt-in by nature (simply
+            // shows "Loading weather..." until the first fetch resolves,
+            // never a silent failure). Now WeatherWidget.qml, shared with
+            // CalendarFlyout.qml's own weather row rather than duplicated.
+            WeatherWidget {
+                width: root.contentWidth
+            }
+
             // Was a plain Row (media card, then whichever gauges column
             // immediately follows it with a fixed 14px gap) - switched to
             // explicit left/right anchoring instead so the gauges cluster
@@ -1072,6 +1064,47 @@ PopupWindow {
                         }
                     }
 
+                    // Noctalia's own reference Control Center integrates a
+                    // live audio-reactive visualizer into its media card,
+                    // between the track info and the transport controls -
+                    // reuses AudioVisualizer.qml exactly as it stands (the
+                    // bar's own module for this), just re-sized to the
+                    // card's own width rather than duplicating its
+                    // Process+SplitParser capture logic a second time.
+                    // Wrapped in a Loader active only while both this card
+                    // (visible: ModulesConfig.showInTray("mediaPlayer",...)
+                    // && !!MediaService.currentPlayer, above) AND Control
+                    // Center itself are actually visible - AudioVisualizer's
+                    // own header comment is explicit that it carries a real,
+                    // continuous cost (a `parec` capture running for as long
+                    // as the component exists at all), and mediaCard.visible
+                    // alone doesn't imply this popup is open (nothing
+                    // unbinds it when Control Center closes while a track
+                    // keeps playing) - gating on both is what actually keeps
+                    // that capture from running in the background whenever
+                    // something happens to be playing, whether or not
+                    // anyone's looking at this panel.
+                    Loader {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        height: active ? item.implicitHeight : 0
+                        active: root.visible && mediaCard.visible
+                        sourceComponent: Component {
+                            AudioVisualizer {
+                                barColor: Colors.coral
+                                // 58 bars at this width/spacing sums to
+                                // 288px - as close to this card's own 290px
+                                // width as a whole bar count gets, so
+                                // centering it leaves only ~1px of margin
+                                // per side rather than a visibly lopsided
+                                // gap.
+                                barCount: 58
+                                barWidth: 3
+                                barSpacing: 2
+                                maxBarHeight: 20
+                            }
+                        }
+                    }
+
                     NSlider {
                         width: parent.width
                         from: 0
@@ -1169,12 +1202,19 @@ PopupWindow {
                         fillColor: Colors.blue
                     }
 
+                    // Was the exact same thermometer glyph the CPU-temp
+                    // gauge above uses - the two gauges were indistinguishable
+                    // by icon shape, only their fillColor (blue vs teal) told
+                    // them apart. nf-md-expansion_card (U+F0A32, confirmed
+                    // present in the installed font before use, same as its
+                    // bar-module counterpart in BarStatusModules.qml) ties
+                    // this reading to its actual hardware instead.
                     NCircularGauge {
                         diameter: 38
                         visible: ModulesConfig.configFile.adapter.ccGaugeGpuTemp
                         value: gpuTempSource.tempC / 100
                         valueText: gpuTempSource.haveReading ? Math.round(gpuTempSource.tempC) + "°" : "--"
-                        icon: ""
+                        icon: "󰨲"
                         fillColor: Colors.teal
                     }
 
@@ -1187,19 +1227,6 @@ PopupWindow {
                         fillColor: Colors.purple
                     }
                 }
-            }
-
-            // Weather - the one piece of the reference screenshot deferred
-            // out of the seventh Control Center pass specifically so it
-            // wouldn't be bundled into an already-large media/audio change.
-            // No ModulesConfig tray gate - unlike the toggle/quick-launch
-            // tiles above, there's no existing bar presence to preserve or
-            // hide, and a location/weather API is opt-in by nature (simply
-            // shows "Loading weather..." until the first fetch resolves,
-            // never a silent failure). Now WeatherWidget.qml, shared with
-            // CalendarFlyout.qml's own weather row rather than duplicated.
-            WeatherWidget {
-                width: root.contentWidth
             }
         }
     }

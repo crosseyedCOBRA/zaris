@@ -196,7 +196,15 @@ Row {
         id: gpuTempComponent
         HwmonSensor {
             sensorLabel: "edge" // amdgpu GPU sensor -- same caveat as above
-            iconGlyph: ""
+            // Was the exact same thermometer glyph cpuTempComponent uses
+            // above (confirmed via the raw bytes, not just "looks similar")
+            // - the two were genuinely indistinguishable at a glance except
+            // by bar position and color. nf-md-expansion_card (U+F0A32,
+            // confirmed present in the installed font's cmap before use)
+            // ties this reading to its actual hardware - a GPU/expansion-
+            // card glyph - rather than a second copy of a generic
+            // thermometer.
+            iconGlyph: "󰨲"
             textColor: Colors.teal
         }
     }
