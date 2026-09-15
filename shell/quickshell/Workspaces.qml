@@ -45,15 +45,16 @@ Row {
 
             width: label.implicitWidth + 16
             height: 22
-            radius: 4
+            radius: Math.min(Style.radiusS, height / 2)
             color: modelData.active ? Colors.pillActive : Colors.pill
 
-            Text {
+            NText {
                 id: label
                 anchors.centerIn: parent
                 text: pill.modelData.name
                 color: pill.modelData.active ? Colors.teal : Colors.textMuted
-                font.pixelSize: 13
+                pointSize: Style.fontSizeM
+                font.weight: Style.fontWeightBold
             }
 
             MouseArea {

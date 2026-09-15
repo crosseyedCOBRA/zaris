@@ -15,14 +15,78 @@ import Quickshell.Io
 //                           - "primary" matches Quickshell.screens[0]; an
 //                             array matches exact xrandr/RandR output names
 //                             (see `xrandr` output, e.g. "DisplayPort-1").
+//                             Only applies to showInBar() - the bar really
+//                             is per-monitor (Bar.qml instantiates one per
+//                             screen), so this avoids e.g. duplicating
+//                             kernel/network across every monitor's bar.
+//                             showInTray() ignores it entirely: the Control
+//                             Center is one single global window, not
+//                             per-monitor, so a module scoped "primary"
+//                             would otherwise vanish from it entirely
+//                             whenever it's opened from a non-primary
+//                             monitor's chevron - confusing for something
+//                             with no other per-monitor meaning.
 //   "tray": true/false     - false (default): shown directly in the bar.
 //                             true: still active, but tucked into the
 //                             overflow flyout (the "..." icon) instead of
 //                             taking up space in the bar itself.
+//   "section": "left" | "center" | "right" (default "right") - which of
+//                             the bar's three zones a bar-shown module
+//                             (tray: false) renders in. Ignored for
+//                             tray-shown modules (Control Center is one
+//                             flat list, not sectioned) and ignored
+//                             entirely in the bar's "taskbar" layout mode,
+//                             whose left/center are already spoken for by
+//                             the embedded dock/workspaces - see
+//                             Bar.qml's own comment on that boundary.
+//   "order": number         - sort key within a module's destination
+//                             (its bar section, or the Control Center
+//                             list) - lower sorts first. Ties break by
+//                             moduleIds's own array order, matching this
+//                             file's previous (pre-Settings-driven)
+//                             hardcoded rendering order.
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["kernel", "cpu", "cpuTemp", "gpuTemp", "network", "volume", "stayAwake"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy", "audioVisualizer", "clock"]
+
+    // The subset Settings' new "Bar Modules" tab lets you add/reorder -
+    // every id above except mediaPlayer, which has no bar-side rendering
+    // at all (Control Center's media card replaced Bar.qml's own
+    // MediaWidget - see BarStatusModules.qml's own comment), so adding it
+    // to a bar section would silently render nothing.
+    readonly property var barModuleIds: root.moduleIds.filter(function (id) { return id !== "mediaPlayer" })
+
+    // The subset Settings' new "Control Center" tab lets you add/reorder -
+    // every module in Control Center's main quick-toggle grid, which
+    // renders as the same uniform tile shape (a Column: icon or toggle
+    // component, then a label, with a MouseArea over the whole tile) -
+    // checked each one's actual QML shape and grid membership directly
+    // rather than assumed, since a couple (stayAwake, nightLight) default
+    // to hidden (tray: false) and were easy to miss at a glance.
+    // Deliberately excludes: wallpaper (a uniform tile shape too, but
+    // lives in a second, visually separate Grid alongside the
+    // Screenshot tile - which has no modules.json entry at all - rather
+    // than this main one; interleaving it into this list would break
+    // that deliberate two-grid grouping), kernel/cpu/cpuTemp/gpuTemp/
+    // battery (gauges/a text line, a different fixed layout block
+    // entirely), volume (the Audio section, sliders not a toggle tile),
+    // and mediaPlayer (the media card) - none of those are interchangeable
+    // same-shaped chips the way these six are, so a generic reorder
+    // wouldn't correctly relocate them in Control Center's actual layout.
+    // "dnd" was here too until its tile was removed from Control Center
+    // entirely (its toggle moved onto the bar's notification bell icon
+    // instead, right-click - see NotificationIndicator.qml's own header
+    // comment) - it's still a real bar module (Dnd.qml), just no longer a
+    // Control Center one. The power-profile tile has no modules.json
+    // entry either and stays fixed first in this grid, with Battery now
+    // fixed second (opens Settings' Battery tab on click rather than
+    // toggling anything, so it isn't part of this reorderable set either -
+    // see ControlCenter.qml's own comment) - regardless of how these six
+    // are arranged. A real reorderable surface for the excluded set needs
+    // the separate, not-yet-designed Control Center layout work (see
+    // ROADMAP.md's own still-open items for that).
+    readonly property var trayModuleIds: ["stayAwake", "nightLight", "network", "wifi", "clipboard", "bluetooth"]
 
     property FileView configFile: FileView {
         path: Quickshell.env("HOME") + "/.config/quickshell/modules.json"
@@ -32,13 +96,125 @@ QtObject {
 
         adapter: JsonAdapter {
             id: cfg
-            property var kernel: ({ enabled: true, screens: "primary", tray: false })
+            // Off by default in the bar (per explicit user request) -
+            // Control Center now has its own always-visible "Running
+            // Kernel" section (ControlCenter.qml) independent of this
+            // module entirely, so the kernel version is still visible
+            // somewhere out of the box even with this disabled. Still a
+            // real, re-enableable bar module - toggle "Enabled" in
+            // Settings' Modules tab to bring it back into the bar too.
+            // Previously fixed leftmost bar elements (Bar.qml's own
+            // hardcoded Image+MouseArea and Workspaces{}), now real
+            // modules like everything else - explicit section: "left"/
+            // order since every other module below defaults (via
+            // section()'s own fallback) to "right", and these two need to
+            // keep rendering first, on the left, for anyone who's never
+            // touched Settings' Bar Modules tab.
+            property var launcher: ({ enabled: true, screens: "all", tray: false, section: "left", order: 0 })
+            property var workspaces: ({ enabled: true, screens: "all", tray: false, section: "left", order: 1 })
+            property var kernel: ({ enabled: false, screens: "primary", tray: false })
             property var cpu: ({ enabled: true, screens: "all", tray: false })
             property var cpuTemp: ({ enabled: true, screens: "all", tray: false })
             property var gpuTemp: ({ enabled: true, screens: "all", tray: false })
-            property var network: ({ enabled: true, screens: "primary", tray: false })
-            property var volume: ({ enabled: true, screens: "all", tray: false })
+            property var ram: ({ enabled: true, screens: "all", tray: false })
+            property var network: ({ enabled: true, screens: "primary", tray: true })
+            property var wifi: ({ enabled: true, screens: "all", tray: true })
+            // Was `tray: true` while VolumeControl.qml was still hardcoded
+            // to ignore this entry entirely and always render in the bar
+            // regardless - a real bug once it actually started being
+            // respected (reported live: toggling/reordering "Volume" in
+            // Settings visibly did nothing). `tray: false` + an explicit
+            // high `order` (matching Control Center's own reasoning just
+            // above) actually reproduces the real default look instead of
+            // the stale unused value.
+            property var volume: ({ enabled: true, screens: "all", tray: false, section: "right", order: 99 })
             property var stayAwake: ({ enabled: true, screens: "all", tray: false })
+            property var nightLight: ({ enabled: true, screens: "all", tray: false })
+            property var dnd: ({ enabled: true, screens: "all", tray: true })
+            property var bluetooth: ({ enabled: true, screens: "all", tray: false })
+            property var mediaPlayer: ({ enabled: true, screens: "all", tray: true })
+            property var clipboard: ({ enabled: true, screens: "all", tray: true })
+            property var notifications: ({ enabled: true, screens: "all", tray: false })
+            property var wallpaper: ({ enabled: true, screens: "all", tray: true })
+            property var battery: ({ enabled: true, screens: "all", tray: true })
+            // Off by default in the bar, same reasoning as kernel above -
+            // Control Center already has its own always-visible Weather
+            // section (ControlCenter.qml, independent of this module), so
+            // it's still visible somewhere out of the box even disabled
+            // here. Real, re-enableable bar module like any other.
+            property var weather: ({ enabled: false, screens: "all", tray: false })
+            // Self-hides via BrightnessIndicator.qml's own `available`
+            // check (no controllable monitor found) - same
+            // enabled-but-gracefully-hidden pattern as battery above.
+            property var brightness: ({ enabled: true, screens: "all", tray: false })
+            // Off by default - BarConfig.layoutMode "taskbar" already
+            // gives the exact same running-apps icon strip as its own
+            // dedicated whole-bar layout (DockIcons.qml/
+            // DockItemsService.qml, shared component). This is the same
+            // strip made available as an opt-in module for "statusbar"
+            // layout too, for anyone who wants it without switching modes
+            // entirely.
+            property var taskbar: ({ enabled: false, screens: "all", tray: false })
+            // Previously a fixed rightmost Bar.qml element (both layout
+            // modes), always after Volume - explicit high `order` (rather
+            // than relying on moduleIds's own fallback order, which would
+            // put it wherever it happens to sit in that list) keeps it
+            // sorting last among real modules by default, same visual
+            // effect. Volume itself stays fixed/un-gated for its own
+            // reasons (see VolumeControl.qml), so the one default-order
+            // change from before: modules now render Volume last, not
+            // Control Center - Control Center sorts last *among modules*,
+            // immediately before the still-fixed Volume rather than after
+            // it, since nothing can render after Volume's own fixed
+            // position without un-fixing that too.
+            property var controlCenter: ({ enabled: true, screens: "all", tray: false, section: "right", order: 100 })
+            // Previously a fixed BarClockText.qml instantiation - center
+            // section in "statusbar" layout, right side (before Control
+            // Center) in "taskbar" - order 98 approximates that taskbar
+            // position (sorts just before volume's 99/controlCenter's
+            // 100), and is irrelevant in statusbar mode since nothing
+            // else defaults to "center".
+            property var clock: ({ enabled: true, screens: "all", tray: false, section: "center", order: 98 })
+            // Off by default - a new, less-discovered action (needs
+            // xcolor installed) rather than a status readout everyone
+            // wants visible immediately.
+            property var colorPicker: ({ enabled: false, screens: "all", tray: false })
+            // Enabled by default like battery/brightness - self-hides via
+            // VpnToggle.qml's own `hasVpn` check when no VPN connection
+            // is configured, same graceful-degrade pattern.
+            property var vpn: ({ enabled: true, screens: "all", tray: false })
+            // Enabled by default - self-hides via PrivacyIndicator.qml's
+            // own `anyActive` check when nothing is recording/no camera
+            // is open, same graceful-degrade pattern as vpn/battery/
+            // brightness above.
+            property var privacy: ({ enabled: true, screens: "all", tray: false })
+            // Off by default - unlike everything else here, this one
+            // runs a continuous audio-capture process the whole time
+            // it's enabled (see AudioVisualizer.qml's own comment), real
+            // ongoing CPU cost rather than a cheap periodic poll.
+            // screens: "primary" for the same reason kernel/network
+            // already default there (Bar.qml's own header comment: no
+            // point duplicating this across every screen) - each
+            // monitor's bar runs its own independent copy of whatever
+            // this module does, so "all" would mean N redundant parec
+            // capture processes, not just N redundant cheap polls like
+            // every other module here.
+            property var audioVisualizer: ({ enabled: false, screens: "primary", tray: false })
+
+            // Control Center's vertical gauge stack (CPU load/CPU temp/
+            // GPU temp/RAM) - deliberately NOT the same enabled/screens/
+            // tray shape as the modules above. Those four gauges aren't
+            // "modules" in the bar-or-Control-Center sense at all (there's
+            // no bar-row equivalent for this specific gauge presentation,
+            // and they're not meant to ever move to the bar) - just four
+            // independent, Control-Center-only on/off flags, each
+            // defaulting to shown, per the backlog's own "these 4 should
+            // always be shown by default, with a per-module way to turn
+            // each off individually."
+            property bool ccGaugeCpu: true
+            property bool ccGaugeCpuTemp: true
+            property bool ccGaugeGpuTemp: true
+            property bool ccGaugeRam: true
         }
     }
 
@@ -64,11 +240,101 @@ QtObject {
 
     function showInTray(id, panel) {
         const e = root._entry(id)
-        return e.enabled !== false && !!e.tray && root._screenMatches(id, panel)
+        return e.enabled !== false && !!e.tray
     }
 
     function anyTrayVisible(panel) {
         return root.moduleIds.some(function (id) { return root.showInTray(id, panel) })
+    }
+
+    function section(id) {
+        const s = root._entry(id).section
+        return (s === "left" || s === "center" || s === "right") ? s : "right"
+    }
+
+    // Falls back to the id's own position in moduleIds (the file's
+    // original hardcoded render order) when no explicit order was ever
+    // set - new modules.json files, or entries never touched by the new
+    // Settings tabs, keep rendering in exactly the order they always did.
+    function order(id) {
+        const o = root._entry(id).order
+        if (typeof o === "number")
+            return o
+        return root.moduleIds.indexOf(id)
+    }
+
+    function _sortedByOrder(ids) {
+        return ids.slice().sort(function (a, b) { return root.order(a) - root.order(b) })
+    }
+
+    // Bar-shown (tray: false), enabled, screen-matched modules assigned to
+    // one of the bar's three zones, in their configured order - the actual
+    // data BarStatusModules.qml's per-section Repeater renders from.
+    function orderedBarModules(section_, panel) {
+        const ids = root.barModuleIds.filter(function (id) {
+            return root.showInBar(id, panel) && root.section(id) === section_
+        })
+        return root._sortedByOrder(ids)
+    }
+
+    // Every bar-shown module regardless of section, in order - used by the
+    // "taskbar" bar layout, whose left/center zones are already spoken for
+    // by the embedded dock/workspaces (see Bar.qml's own comment), so
+    // section assignment is ignored there rather than silently dropping
+    // whatever was assigned "left"/"center".
+    function orderedBarModulesAnySection(panel) {
+        const ids = root.barModuleIds.filter(function (id) { return root.showInBar(id, panel) })
+        return root._sortedByOrder(ids)
+    }
+
+    // Control Center's reorderable toggle-tile subset (trayModuleIds),
+    // tray-shown and enabled, in configured order.
+    function orderedTrayModules(panel) {
+        const ids = root.trayModuleIds.filter(function (id) { return root.showInTray(id, panel) })
+        return root._sortedByOrder(ids)
+    }
+
+    // Settings' own Bar Modules tab isn't rendering one specific monitor's
+    // bar - it's editing the underlying assignment, so (unlike
+    // orderedBarModules above, which Bar.qml itself calls per-panel) this
+    // deliberately ignores per-monitor "screens" scoping entirely rather
+    // than requiring a real panel object just to satisfy _screenMatches.
+    // Every bar-shown, enabled module assigned to `section_` appears here
+    // regardless of which monitor(s) it's actually scoped to.
+    function barModulesForSettings(section_) {
+        const ids = root.barModuleIds.filter(function (id) {
+            const e = root._entry(id)
+            return e.enabled !== false && !e.tray && root.section(id) === section_
+        })
+        return root._sortedByOrder(ids)
+    }
+
+    // Every enabled module NOT currently shown in any bar section - the
+    // Bar Modules tab's own "add a module" dropdown pool (whatever isn't
+    // already placed reads as "available to add").
+    function barModulesAvailableToAdd() {
+        const ids = root.barModuleIds.filter(function (id) {
+            const e = root._entry(id)
+            return e.enabled === false || !!e.tray
+        })
+        return ids
+    }
+
+    // Control Center tab equivalent - ignores the `panel` param
+    // orderedTrayModules needs (showInTray doesn't actually use it, but
+    // keeping a distinctly-named function here for symmetry/clarity with
+    // barModulesForSettings above, and so a future showInTray change that
+    // does start using panel doesn't quietly change Settings' own listing).
+    function trayModulesForSettings() {
+        const ids = root.trayModuleIds.filter(function (id) { return root._entry(id).enabled !== false && !!root._entry(id).tray })
+        return root._sortedByOrder(ids)
+    }
+
+    function trayModulesAvailableToAdd() {
+        return root.trayModuleIds.filter(function (id) {
+            const e = root._entry(id)
+            return e.enabled === false || !e.tray
+        })
     }
 
     // Setters used by Settings.qml. Each does a full reassignment of the
@@ -89,4 +355,74 @@ QtObject {
         const cur = root._entry(id)
         configFile.adapter[id] = Object.assign({}, cur, { screens: val })
     }
+
+    function setSection(id, val) {
+        const cur = root._entry(id)
+        configFile.adapter[id] = Object.assign({}, cur, { section: val })
+    }
+
+    function setOrder(id, val) {
+        const cur = root._entry(id)
+        configFile.adapter[id] = Object.assign({}, cur, { order: val })
+    }
+
+    // Drives Settings' Bar Modules drag-and-drop: `orderedIds` is the full,
+    // final desired ordering for one bar section (Left/Center/Right),
+    // exactly as the UI computed it after a drop - covers both a plain
+    // within-section reorder and a cross-section move (the dragged id
+    // simply appears in a different section's list) in one call, stamping
+    // both `section` and a fresh sequential `order` (0, 1, 2, ...) for
+    // every id in the list. The list a moved id's *old* section is left
+    // with isn't restamped - safe to leave with a small numeric gap, since
+    // order only ever needs to sort correctly among a section's other
+    // members, not form a contiguous sequence.
+    function reorderBarSection(section_, orderedIds) {
+        for (let i = 0; i < orderedIds.length; i++) {
+            const id = orderedIds[i]
+            const cur = root._entry(id)
+            configFile.adapter[id] = Object.assign({}, cur, { section: section_, order: i })
+        }
+    }
+
+    // Same idea for Control Center's flat (unsectioned) reorderable list.
+    function reorderTrayModules(orderedIds) {
+        for (let i = 0; i < orderedIds.length; i++) {
+            const id = orderedIds[i]
+            const cur = root._entry(id)
+            configFile.adapter[id] = Object.assign({}, cur, { order: i })
+        }
+    }
+
+    // "Add a widget" dropdown actions - append the module to the end of
+    // its new destination's current order rather than leaving whatever
+    // order value it had from the last time it was placed somewhere.
+    function addToBarSection(id, section_) {
+        const existing = root.barModulesForSettings(section_)
+        const cur = root._entry(id)
+        configFile.adapter[id] = Object.assign({}, cur, { enabled: true, tray: false, section: section_, order: existing.length })
+    }
+
+    // Just disables the module - doesn't touch tray/section, so it
+    // remembers where it was if re-enabled later. Doesn't move it to
+    // Control Center either - that's a distinct, explicit action of its
+    // own tab's "add" dropdown, not an implicit side effect of removing it
+    // from here.
+    function removeFromBar(id) {
+        root.setEnabled(id, false)
+    }
+
+    function addToTray(id) {
+        const existing = root.trayModulesForSettings()
+        const cur = root._entry(id)
+        configFile.adapter[id] = Object.assign({}, cur, { enabled: true, tray: true, order: existing.length })
+    }
+
+    function removeFromTray(id) {
+        root.setEnabled(id, false)
+    }
+
+    function setCcGaugeCpu(val) { configFile.adapter.ccGaugeCpu = val }
+    function setCcGaugeCpuTemp(val) { configFile.adapter.ccGaugeCpuTemp = val }
+    function setCcGaugeGpuTemp(val) { configFile.adapter.ccGaugeGpuTemp = val }
+    function setCcGaugeRam(val) { configFile.adapter.ccGaugeRam = val }
 }

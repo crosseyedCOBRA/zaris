@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Widgets
 
 // Rofi-style application launcher.
 //
@@ -11,14 +10,29 @@ import Quickshell.Widgets
 // Usage counts are persisted to Quickshell's reserved state directory and
 // used to sort results (most-launched first), so frequently used apps rise
 // to the top over time.
-FloatingWindow {
-    id: launcherWindow
-
-    visible: LauncherState.visible
-    title: "Launcher"
-
-    implicitWidth: 600
-    implicitHeight: 420
+//
+// Phase 2 of the Noctalia-port effort (see ROADMAP.md): the plain ListView
+// is now NListView (real scrollbar styling + edge-fade gradient masks) and
+// the delegate's raw Text is now NText. The search field keeps its own
+// bordered-Rectangle+TextInput, same reasoning as every other search/
+// filter field in this shell - its Up/Down/Return/Escape key handling
+// isn't reachable through NTextInput's inputItem alias from outside the
+// component. Both of those live in LauncherContent.qml now (see below).
+//
+// Two window variants, same "Item root holding shared state, two Window
+// children" pattern Dock.qml already uses for its reserved/floating modes:
+// a centered FloatingWindow (BarConfig.layoutMode "statusbar", the original
+// behavior, positioned via the WM's own title-matched float+center
+// windowrule) and a PopupWindow anchored to the bar's own taskbar-mode
+// launcher icon (BarConfig.layoutMode "taskbar", LauncherState.anchorItem -
+// set by Bar.qml right before toggling visible) - "similarly to Windows UI,
+// KDE Plasma, etc." per the user's explicit request for taskbar mode. Only
+// one is ever visible at a time; both share the exact same query/
+// filteredApps/launch() state (kept here, in the outer Item) and the exact
+// same LauncherContent.qml for their actual search+list UI, so switching
+// BarConfig.layoutMode doesn't lose or duplicate any of that state.
+Item {
+    id: root
 
     IpcHandler {
         target: "launcher"
@@ -88,95 +102,64 @@ FloatingWindow {
         })
     }
 
-    onVisibleChanged: {
-        if (visible) {
-            query = ""
-            resultList.currentIndex = 0
-            searchField.forceActiveFocus()
+    FloatingWindow {
+        id: launcherWindow
+
+        visible: LauncherState.visible && BarConfig.layoutMode !== "taskbar"
+        title: "Launcher"
+
+        implicitWidth: 600
+        implicitHeight: 420
+
+        LauncherContent {
+            launcherRoot: root
+            active: BarConfig.layoutMode !== "taskbar"
         }
     }
 
-    Rectangle {
-        anchors.fill: parent
+    // Opens downward below the icon when the bar is at the top, upward
+    // above it when the bar is at the bottom - mirroring a real taskbar
+    // start menu's own behavior either way (Windows/Plasma open upward
+    // from a bottom taskbar). Left-aligned under the icon (anchor.rect.x:
+    // 0) rather than centered like Settings.qml/CalendarFlyout.qml - a
+    // start-menu-style launcher conventionally lines up with its trigger
+    // icon's left edge, not straddling it.
+    PopupWindow {
+        id: launcherPopup
+
+        visible: LauncherState.visible && BarConfig.layoutMode === "taskbar" && !!LauncherState.anchorItem
         color: Colors.bg
 
-        Column {
-            anchors.fill: parent
-            anchors.margins: 12
-            spacing: 8
+        // PopupWindow is a real X11 override-redirect window (confirmed
+        // live via xprop/XQueryTree while chasing this bug), which bypasses
+        // the WM's own SubstructureRedirect-driven focus-on-map entirely -
+        // that's what the statusbar-mode FloatingWindow variant above gets
+        // for free (a real managed window, focused by the WM itself on
+        // creation), and what this variant never got, confirmed live via
+        // XGetInputFocus returning PointerRoot instead of this window's ID
+        // while it was open. grabFocus is Quickshell's own built-in
+        // property for exactly this (Wayland layer-shell's keyboard-
+        // interactivity concept, translated to this X11 backend) - it was
+        // simply never set anywhere in this codebase before now. Left off
+        // Tooltip.qml/CalendarFlyout.qml (also PopupWindow-based) deliberately:
+        // those open on hover/click without any text entry, and grabbing
+        // real keyboard focus there would rip it away from whatever the
+        // user was actually typing into elsewhere just from a mouse
+        // hovering something. The search field here is the whole reason
+        // this popup exists, so it should always get real keyboard input
+        // the instant it opens - matching the statusbar-mode variant.
+        grabFocus: true
 
-            Rectangle {
-                width: parent.width
-                height: 36
-                radius: 6
-                color: "transparent"
-                border.color: Colors.textMuted
-                border.width: 1
+        implicitWidth: 420
+        implicitHeight: 500
 
-                TextInput {
-                    id: searchField
-                    anchors.fill: parent
-                    anchors.margins: 8
-                    color: Colors.text
-                    font.pixelSize: 16
-                    clip: true
-                    focus: true
-                    text: launcherWindow.query
+        anchor.item: LauncherState.anchorItem
+        anchor.rect.x: 0
+        anchor.rect.y: BarConfig.popupAnchorY(LauncherState.anchorItem, implicitHeight)
 
-                    onTextChanged: launcherWindow.query = text
-
-                    Keys.onEscapePressed: LauncherState.visible = false
-                    Keys.onReturnPressed: launcherWindow.launch(resultList.currentModelData)
-                    Keys.onDownPressed: resultList.currentIndex = Math.min(resultList.currentIndex + 1, resultList.count - 1)
-                    Keys.onUpPressed: resultList.currentIndex = Math.max(resultList.currentIndex - 1, 0)
-                }
-            }
-
-            ListView {
-                id: resultList
-                width: parent.width
-                height: parent.height - searchField.height - parent.spacing
-                clip: true
-                model: launcherWindow.filteredApps
-                currentIndex: 0
-
-                property var currentModelData: count > 0 ? model[currentIndex] : null
-
-                delegate: Rectangle {
-                    width: resultList.width
-                    height: 44
-                    radius: 6
-                    color: ListView.isCurrentItem ? Colors.pillActive : "transparent"
-
-                    Row {
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        spacing: 10
-
-                        IconImage {
-                            width: 32
-                            height: 32
-                            anchors.verticalCenter: parent.verticalCenter
-                            source: Quickshell.iconPath(modelData.icon, true)
-                        }
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: modelData.name
-                            color: Colors.text
-                            font.pixelSize: 15
-                        }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            resultList.currentIndex = index
-                            launcherWindow.launch(modelData)
-                        }
-                    }
-                }
-            }
+        LauncherContent {
+            launcherRoot: root
+            active: BarConfig.layoutMode === "taskbar"
         }
     }
 }

@@ -1,7 +1,14 @@
 [Desktop Entry]
 Name=ZarisWM
 Comment=A tiling window manager written in modern C++
-Exec=zaris
+# sh -c, not a bare path: the display manager execs Exec's argv literally
+# with no shell involved, so "$HOME" here only gets expanded because sh
+# itself expands it from the session's own environment at runtime - a
+# bare "$HOME/.config/zaris/start-zaris.sh" would pass a literal,
+# unexpanded string instead. This is what actually applies your monitor
+# layout/wallpaper (see start-zaris.sh) before ZarisWM starts - pointing
+# straight at the zaris binary skips that entirely.
+Exec=sh -c "$HOME/.config/zaris/start-zaris.sh"
 TryExec=zaris
 Type=Application
 X-LightDM-DesktopName=ZarisWM

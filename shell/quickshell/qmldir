@@ -1,11 +1,48 @@
 singleton Colors 1.0 Colors.qml
+singleton Style 1.0 Style.qml
 singleton LauncherState 1.0 LauncherState.qml
 singleton StayAwakeState 1.0 StayAwakeState.qml
+singleton NightLightState 1.0 NightLightState.qml
+singleton NightLightService 1.0 NightLightService.qml
+singleton MediaService 1.0 MediaService.qml
+singleton BluetoothPanelState 1.0 BluetoothPanelState.qml
 singleton ModulesConfig 1.0 ModulesConfig.qml
-singleton OverflowState 1.0 OverflowState.qml
+singleton TooltipService 1.0 TooltipService.qml
+singleton ClipboardHistoryService 1.0 ClipboardHistoryService.qml
+singleton ClipboardHistoryPanelState 1.0 ClipboardHistoryPanelState.qml
+singleton NotificationHistoryService 1.0 NotificationHistoryService.qml
+singleton NotificationHistoryPanelState 1.0 NotificationHistoryPanelState.qml
+singleton WallpaperService 1.0 WallpaperService.qml
+singleton WallpaperPickerPanelState 1.0 WallpaperPickerPanelState.qml
+singleton AvatarPickerPanelState 1.0 AvatarPickerPanelState.qml
+singleton AudioMixerPanelState 1.0 AudioMixerPanelState.qml
+singleton IconPickerPanelState 1.0 IconPickerPanelState.qml
+singleton FolderPickerPanelState 1.0 FolderPickerPanelState.qml
+singleton CalendarFlyoutState 1.0 CalendarFlyoutState.qml
+singleton HostService 1.0 HostService.qml
+singleton BatteryService 1.0 BatteryService.qml
+singleton BrightnessService 1.0 BrightnessService.qml
+singleton ControlCenterState 1.0 ControlCenterState.qml
 singleton SettingsState 1.0 SettingsState.qml
 singleton OSDState 1.0 OSDState.qml
+singleton DockConfig 1.0 DockConfig.qml
+singleton PinDialogState 1.0 PinDialogState.qml
+singleton DndState 1.0 DndState.qml
+singleton WeatherService 1.0 WeatherService.qml
+singleton PowerProfileState 1.0 PowerProfileState.qml
+singleton ThemeConfig 1.0 ThemeConfig.qml
+singleton DefaultsConfig 1.0 DefaultsConfig.qml
+singleton DateTimeConfig 1.0 DateTimeConfig.qml
+singleton BarConfig 1.0 BarConfig.qml
+singleton DockItemsService 1.0 DockItemsService.qml
+singleton PowerMenuPanelState 1.0 PowerMenuPanelState.qml
+singleton NetworkInterfacesService 1.0 NetworkInterfacesService.qml
+singleton DesktopWidgetsConfig 1.0 DesktopWidgetsConfig.qml
+LauncherContent 1.0 LauncherContent.qml
 Launcher 1.0 Launcher.qml
+BarClockText 1.0 BarClockText.qml
+BarControlCenterLauncher 1.0 BarControlCenterLauncher.qml
+BarStatusModules 1.0 BarStatusModules.qml
 Bar 1.0 Bar.qml
 Workspaces 1.0 Workspaces.qml
 CpuLoad 1.0 CpuLoad.qml
@@ -14,7 +51,76 @@ KernelVersion 1.0 KernelVersion.qml
 NetworkStatus 1.0 NetworkStatus.qml
 VolumeControl 1.0 VolumeControl.qml
 SystemTrayRow 1.0 SystemTrayRow.qml
+ToggleSwitch 1.0 ToggleSwitch.qml
+NText 1.0 NText.qml
+NIcon 1.0 NIcon.qml
+NBox 1.0 NBox.qml
+Tooltip 1.0 Tooltip.qml
+NDivider 1.0 NDivider.qml
+NHeader 1.0 NHeader.qml
+NLinearGauge 1.0 NLinearGauge.qml
+NCircularGauge 1.0 NCircularGauge.qml
+NSettingsIndicator 1.0 NSettingsIndicator.qml
+NLabel 1.0 NLabel.qml
+NButton 1.0 NButton.qml
+NIconButton 1.0 NIconButton.qml
+NCheckbox 1.0 NCheckbox.qml
+NBusyIndicator 1.0 NBusyIndicator.qml
+NIconButtonHot 1.0 NIconButtonHot.qml
+NTabBar 1.0 NTabBar.qml
+NTabButton 1.0 NTabButton.qml
+NTabView 1.0 NTabView.qml
+NCollapsible 1.0 NCollapsible.qml
+NScrollText 1.0 NScrollText.qml
+NRadioButton 1.0 NRadioButton.qml
+NTextInput 1.0 NTextInput.qml
+NComboBox 1.0 NComboBox.qml
+NSlider 1.0 NSlider.qml
+NSpinBox 1.0 NSpinBox.qml
+NContextMenu 1.0 NContextMenu.qml
+NScrollView 1.0 NScrollView.qml
+NListView 1.0 NListView.qml
+NGridView 1.0 NGridView.qml
 StayAwake 1.0 StayAwake.qml
-Overflow 1.0 Overflow.qml
+Dnd 1.0 Dnd.qml
+NetworkToggle 1.0 NetworkToggle.qml
+WifiToggle 1.0 WifiToggle.qml
+NightLight 1.0 NightLight.qml
+MediaWidget 1.0 MediaWidget.qml
+ClipboardIndicator 1.0 ClipboardIndicator.qml
+ClipboardHistoryPanel 1.0 ClipboardHistoryPanel.qml
+NotificationIndicator 1.0 NotificationIndicator.qml
+NotificationHistoryPanel 1.0 NotificationHistoryPanel.qml
+WallpaperIndicator 1.0 WallpaperIndicator.qml
+WallpaperPickerPanel 1.0 WallpaperPickerPanel.qml
+AvatarPickerPanel 1.0 AvatarPickerPanel.qml
+IconPickerPanel 1.0 IconPickerPanel.qml
+FolderPickerPanel 1.0 FolderPickerPanel.qml
+AudioMixer 1.0 AudioMixer.qml
+AudioMixerPanel 1.0 AudioMixerPanel.qml
+CalendarWidget 1.0 CalendarWidget.qml
+ModuleChip 1.0 ModuleChip.qml
+MemUsage 1.0 MemUsage.qml
+WeatherWidget 1.0 WeatherWidget.qml
+CalendarFlyout 1.0 CalendarFlyout.qml
+BatteryIndicator 1.0 BatteryIndicator.qml
+BluetoothIndicator 1.0 BluetoothIndicator.qml
+BluetoothPanel 1.0 BluetoothPanel.qml
+PowerMenuPanel 1.0 PowerMenuPanel.qml
+ControlCenter 1.0 ControlCenter.qml
 Settings 1.0 Settings.qml
 OSD 1.0 OSD.qml
+DesktopClock 1.0 DesktopClock.qml
+DesktopMedia 1.0 DesktopMedia.qml
+DesktopSystemStats 1.0 DesktopSystemStats.qml
+WeatherIndicator 1.0 WeatherIndicator.qml
+BrightnessIndicator 1.0 BrightnessIndicator.qml
+ColorPicker 1.0 ColorPicker.qml
+VpnToggle 1.0 VpnToggle.qml
+PrivacyIndicator 1.0 PrivacyIndicator.qml
+AudioVisualizer 1.0 AudioVisualizer.qml
+DockIcons 1.0 DockIcons.qml
+DockContent 1.0 DockContent.qml
+DockLauncherIcon 1.0 DockLauncherIcon.qml
+Dock 1.0 Dock.qml
+PinDialog 1.0 PinDialog.qml

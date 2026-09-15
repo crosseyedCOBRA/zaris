@@ -34,6 +34,46 @@ public:
     Vector2D                    mouseLastPos = Vector2D(0, 0);
     int64_t                     actingOnWindowFloating = 0;
 
+    // Live drag-to-retile preview, both dwindle and master layouts (see
+    // updateDragRetilePreview()'s own comment for the two different
+    // mechanisms - dwindle shrinks just the hovered target, master
+    // recalculates the whole stack). 0 = no preview currently active,
+    // otherwise the drawable of whichever tiled window is currently
+    // hovered.
+    xcb_drawable_t              DragPreviewTargetID = 0;
+    void                        updateDragRetilePreview(CWindow* pDraggedWindow);
+    // Heals whatever the preview last shrank and resets the tracked
+    // target to none - called on drop (eventButtonRelease), before the
+    // real re-tile, and separately from updateDragRetilePreview() since
+    // that one only clears/replaces a preview in response to the cursor
+    // moving to a new target, not unconditionally.
+    void                        clearDragRetilePreview();
+
+    // eventButtonRelease captures DragPreviewTargetID here just before
+    // calling clearDragRetilePreview() (which resets that to 0) - needed
+    // because toggleActiveWindowFloating's un-float path (KeybindManager.cpp)
+    // destroys and rebuilds the dragged window's whole CWindow object
+    // afterward, so reorderMasterChild() needs some way to still know
+    // which window was hovered at the moment of the drop, once it finally
+    // runs against the rebuilt object. 0 = no drop target (e.g. dropped
+    // somewhere with no valid hover target).
+    xcb_drawable_t              PendingDragRetileTarget = 0;
+
+    // Master layout only: splices pWindow into the workspace's master
+    // child list at whatever rank PendingDragRetileTarget currently holds
+    // (found by matching drawable IDs among the *other* children, sorted
+    // by their real MasterChildIndex) and renumbers every sibling
+    // sequentially, so the drop actually lands where the live preview
+    // showed it landing. MasterChildIndex is deliberately NOT usable as a
+    // ready-made list position here - it's set at window-creation time to
+    // "total window count on the workspace minus 1" (so e.g. a workspace's
+    // first, second, third child end up 1, 2, 3, not 0, 1, 2, since the
+    // master itself counts toward that total) - so re-deriving the
+    // target's actual rank by drawable match, not reusing its raw stored
+    // index as a position, is what makes the splice land in the right
+    // slot instead of one off from it.
+    void                        reorderMasterChild(CWindow* pWindow);
+
     bool                        scratchpadActive = false;
 
     uint8_t                     Depth = 32;
@@ -74,6 +114,27 @@ public:
 
     Vector2D                    QueuedPointerWarp = {-1, -1};
 
+    // Quickshell PopupWindows (Settings, Control Center, the calendar
+    // flyout, the taskbar-mode launcher, tooltips) that should stay raised
+    // above every other window - populated by Events::eventMapNotify (see
+    // its own comment for why every Quickshell popup gets treated
+    // uniformly rather than trying to single out just Settings/Control
+    // Center), reasserted every event-loop tick by reassertAlwaysOnTop()
+    // unless the popup's own monitor currently has a fullscreen window,
+    // and lazily pruned of dead/unmapped entries the same tick.
+    std::vector<xcb_window_t>   alwaysOnTopWindows;
+    void                        reassertAlwaysOnTop();
+
+    // Desktop widgets (Clock/Weather/Media/SystemStats, the "alwaysbottom"
+    // window rule) - the mirror image of alwaysOnTopWindows above: normal,
+    // non-override-redirect FloatingWindows (unlike the popups above)
+    // populated once in doPostCreationChecks() rather than per-map-event,
+    // reasserted every tick by reassertAlwaysOnBottom() via
+    // XCB_STACK_MODE_BELOW so a newly mapped/raised window always ends up
+    // on top of them rather than the other way around.
+    std::vector<xcb_window_t>   alwaysOnBottomWindows;
+    void                        reassertAlwaysOnBottom();
+
     CWindow*                    getWindowFromDrawable(int64_t);
     void                        addWindowToVectorSafe(CWindow);
     void                        removeWindowFromVectorSafe(int64_t);
@@ -109,6 +170,7 @@ public:
     void                        setAllWindowsDirty();
     void                        setAllFloatingWindowsTop();
     void                        setAWindowTop(xcb_window_t);
+    void                        setAWindowBottom(xcb_window_t);
 
     SMonitor*                   getMonitorFromWindow(CWindow*);
     SMonitor*                   getMonitorFromCursor();

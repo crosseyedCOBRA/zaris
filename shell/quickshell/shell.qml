@@ -16,7 +16,22 @@ import Quickshell
 ShellRoot {
     Launcher {}
     Bar {}
-    Overflow {}
+    ControlCenter {}
     Settings {}
     OSD {}
+    DesktopClock {}
+    DesktopMedia {}
+    DesktopSystemStats {}
+    Dock {}
+    PinDialog {}
+    BluetoothPanel {}
+    ClipboardHistoryPanel {}
+    WallpaperPickerPanel {}
+    CalendarFlyout {}
+    NotificationHistoryPanel {}
+    AvatarPickerPanel {}
+    AudioMixerPanel {}
+    IconPickerPanel {}
+    FolderPickerPanel {}
+    PowerMenuPanel {}
 }

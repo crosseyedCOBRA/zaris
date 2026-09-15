@@ -9,6 +9,11 @@ import Quickshell.Io
 // windowrule=float + windowrule=center,title:^OSD$ in zaris.conf places it
 // like the launcher/settings windows - same mechanism, nothing new needed
 // on the WM side for this one.
+//
+// Phase 2 of the Noctalia-port effort (see ROADMAP.md): the icon glyph is
+// now NIcon and the percentage/muted label is now NText, matching the
+// icon-vs-text convention every ported widget already uses internally
+// (e.g. NButton's own icon+text pair).
 FloatingWindow {
     id: osdWindow
 
@@ -30,6 +35,37 @@ FloatingWindow {
         }
     }
 
+    // Actually changes brightness (via BrightnessService, which picks
+    // ddcutil/brightnessctl/asdbctl per-monitor as appropriate) and shows
+    // the OSD popup with the primary monitor's resulting level - bind
+    // XF86MonBrightnessUp/Down to these in zaris.conf once ddcutil or
+    // brightnessctl is installed for your hardware (see DEPENDENCIES.md).
+    IpcHandler {
+        target: "brightness"
+
+        function increase(): void {
+            BrightnessService.increaseBrightness()
+            osdWindow.showPrimaryBrightness()
+        }
+
+        function decrease(): void {
+            BrightnessService.decreaseBrightness()
+            osdWindow.showPrimaryBrightness()
+        }
+    }
+
+    function showPrimaryBrightness() {
+        const monitor = BrightnessService.getMonitorForScreen(Quickshell.screens[0])
+        if (!monitor)
+            return
+        // increase/decreaseBrightness() only queue the new value (applied
+        // after a short debounce) rather than updating `brightness`
+        // synchronously - read the queued value first so the OSD doesn't
+        // briefly flash the stale pre-change level.
+        const level = !isNaN(monitor.queuedBrightness) ? monitor.queuedBrightness : monitor.brightness
+        OSDState.show("brightness", Math.round(level * 100), false)
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: 10
@@ -42,17 +78,35 @@ FloatingWindow {
             width: parent.width - 40
             spacing: 10
 
-            Text {
+            Row {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: {
-                    if (OSDState.kind === "brightness")
-                        return " " + Math.round(OSDState.level * 100) + "%"
-                    if (OSDState.muted)
-                        return " muted"
-                    return " " + Math.round(OSDState.level * 100) + "%"
+                spacing: 8
+
+                NIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: {
+                        if (OSDState.kind === "brightness")
+                            return ""
+                        if (OSDState.muted)
+                            return ""
+                        return ""
+                    }
+                    color: Colors.text
+                    pointSize: Style.fontSizeL
                 }
-                color: Colors.text
-                font.pixelSize: 16
+
+                NText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: {
+                        if (OSDState.kind === "brightness")
+                            return Math.round(OSDState.level * 100) + "%"
+                        if (OSDState.muted)
+                            return "muted"
+                        return Math.round(OSDState.level * 100) + "%"
+                    }
+                    color: Colors.text
+                    pointSize: Style.fontSizeL
+                }
             }
 
             Rectangle {

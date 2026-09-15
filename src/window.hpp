@@ -118,6 +118,11 @@ public:
     // For pinning floating
     EXPOSED_MEMBER(Pinned, bool, b);
 
+    // Desktop widgets (Clock/Weather/Media/SystemStats) - the "alwaysbottom"
+    // window rule's counterpart to alwaysOnTopWindows, tracked the same way
+    // (see CWindowManager::alwaysOnBottomWindows/reassertAlwaysOnBottom()).
+    EXPOSED_MEMBER(AlwaysBottom, bool, b);
+
 private:
 
 };

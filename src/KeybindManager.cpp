@@ -259,6 +259,9 @@ void KeybindManager::toggleActiveWindowFloating(std::string arg) {
             PNEWWINDOW->setRealPosition(RESTOREREALP);
             PNEWWINDOW->setRealSize(RESTOREREALS);
             PNEWWINDOW->setDraggingTiled(RESTOREDRAGT);
+
+            if (RESTOREDRAGT && ConfigManager::getInt("layout") == LAYOUT_MASTER)
+                g_pWindowManager->reorderMasterChild(PNEWWINDOW);
         }
 
         // EWMH to let everyone know

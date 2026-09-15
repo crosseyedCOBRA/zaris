@@ -11,16 +11,18 @@ Row {
     visible: root.version !== ""
     spacing: 4
 
-    Text {
+    NText {
         text: "" // nf-fa-linux
         color: root.textColor
-        font.pixelSize: 13
+        pointSize: Style.fontSizeM
+        font.weight: Style.fontWeightBold
     }
 
-    Text {
+    NText {
         text: root.version
         color: root.textColor
-        font.pixelSize: 13
+        pointSize: Style.fontSizeM
+        font.weight: Style.fontWeightBold
     }
 
     Process {

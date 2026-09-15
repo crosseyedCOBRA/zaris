@@ -1,6 +1,7 @@
 #include "windowManager.hpp"
 #include "./events/events.hpp"
 #include <string.h>
+#include <algorithm>
 
 xcb_visualtype_t* CWindowManager::setupColors(const int& desiredDepth) {
     auto depthIter = xcb_screen_allowed_depths_iterator(Screen);
@@ -164,14 +165,31 @@ void CWindowManager::setupManager() {
     //
 
     Values[0] = XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_PROPERTY_CHANGE;
-    xcb_change_window_attributes_checked(DisplayConnection, Screen->root,
+    const auto SUBREDIRECTCOOKIE = xcb_change_window_attributes_checked(DisplayConnection, Screen->root,
                                          XCB_CW_EVENT_MASK, Values);
+
+    // SubstructureRedirect can only be selected by one client at a time - X11
+    // itself enforces this (BadAccess), not anything checked here. XCB doesn't
+    // refuse the *connection* just because another WM already holds it, so
+    // without this check a second ZarisWM instance would run as a second,
+    // real window manager silently fighting the first one over every window
+    // (confirmed live: this actually happens, briefly, if the binary is ever
+    // run while a session is already up).
+    if (const auto SUBREDIRECTERROR = xcb_request_check(DisplayConnection, SUBREDIRECTCOOKIE); SUBREDIRECTERROR != NULL) {
+        Debug::log(CRIT, "Failed to select SubstructureRedirect on the root window (X error code " + std::to_string(SUBREDIRECTERROR->error_code) + ") - is another window manager already running?");
+        free(SUBREDIRECTERROR);
+        exit(1);
+    }
 
     Debug::log(LOG, "Root done.");
 
     ConfigManager::init();
 
     Debug::log(LOG, "Config done.");
+
+    // No compositing here by design - Zaris stays out of the way and lets
+    // an external compositor (picom recommended, see shell/README.md) own
+    // that layer, rather than redirecting subwindows itself.
 
     // Add workspaces to the monitors
     for (long unsigned int i = 0; i < monitors.size(); ++i) {
@@ -219,6 +237,15 @@ bool CWindowManager::handleEvent() {
 
     // refresh and apply the parameters of all dirty windows.
     refreshDirtyWindows();
+
+    // Keep Settings/Control Center/other Quickshell popups above every
+    // other window, except a fullscreen one (see reassertAlwaysOnTop's own
+    // comment and Events::eventMapNotify for how these get tracked).
+    reassertAlwaysOnTop();
+
+    // Keep desktop widgets (Clock/Weather/Media/SystemStats) below every
+    // other window (see reassertAlwaysOnBottom's own comment).
+    reassertAlwaysOnBottom();
 
     // Sanity checks
     for (const auto active : activeWorkspaces) {
@@ -292,6 +319,10 @@ void CWindowManager::recieveEvent() {
             case XCB_MAP_REQUEST:
                 Events::eventMapWindow(ev);
                 Debug::log(LOG, "Event dispatched MAP");
+                break;
+            case XCB_MAP_NOTIFY:
+                Events::eventMapNotify(ev);
+                Debug::log(LOG, "Event dispatched MAP_NOTIFY");
                 break;
             case XCB_BUTTON_PRESS:
                 Events::eventButtonPress(ev);
@@ -393,8 +424,18 @@ void CWindowManager::refreshDirtyWindows() {
             window.setDirty(false);
 
             // Check if the window isn't a node or has the noInterventions prop
-            if (window.getChildNodeAID() != 0 || window.getNoInterventions() || window.getDock()) 
+            if (window.getChildNodeAID() != 0 || window.getNoInterventions() || window.getDock()) {
+                // Docks skip the tiling/animation-oriented logic below (none
+                // of it applies to them - they're not tiled, don't animate,
+                // don't have a meaningful "workspace visibility" the way a
+                // regular window does), but still need their shape applied
+                // for rounding - applyShapeToWindow's own check already
+                // excludes non-dock noInterventions windows, so this only
+                // actually does anything for docks.
+                if (window.getDock())
+                    applyShapeToWindow(&window);
                 continue;
+            }
                 
             setEffectiveSizePosUsingConfig(&window);
 
@@ -752,6 +793,7 @@ void CWindowManager::addWindowToVectorSafe(CWindow window) {
         if (w.getDrawable() == window.getDrawable())
             return; // Do not add if already present.
     }
+
     windows.push_back(window);
 }
 
@@ -780,7 +822,15 @@ void CWindowManager::applyShapeToWindow(CWindow* pWindow) {
 
     const auto SHAPEQUERY = xcb_get_extension_data(DisplayConnection, &xcb_shape_id);
 
-    if (!SHAPEQUERY || !SHAPEQUERY->present || pWindow->getNoInterventions())
+    // Dock-type windows (bars/the app dock) are noInterventions, which used to
+    // skip shaping entirely - meaning their QML side had to fake rounding with
+    // its own decorative Rectangle inset by a margin, which (with no
+    // compositor running to actually blend alpha) rendered as a plain opaque
+    // black square peeking out around/behind the "rounded" content instead of
+    // true transparency. Letting docks through here and having their QML draw
+    // a plain full-bleed rectangle instead fixes that at the root: the real
+    // window shape is what's rounded, not just something drawn inside it.
+    if (!SHAPEQUERY || !SHAPEQUERY->present || (pWindow->getNoInterventions() && !pWindow->getDock()))
         return;
 
     Debug::log(LOG, "Applying shape to " + std::to_string(pWindow->getDrawable()));
@@ -794,9 +844,21 @@ void CWindowManager::applyShapeToWindow(CWindow* pWindow) {
         return;
     }
 
-    const uint16_t W = pWindow->getFullscreen() ? MONITOR->vecSize.x : pWindow->getRealSize().x;
-    const uint16_t H = pWindow->getFullscreen() ? MONITOR->vecSize.y : pWindow->getRealSize().y;
-    const uint16_t BORDER = pWindow->getFullscreen() || (ConfigManager::getInt("layout:no_gaps_when_only") && getWindowsOnWorkspace(pWindow->getWorkspaceID()) == 1) ? 0 : ConfigManager::getInt("border_size");
+    // getRealSize() is only ever kept up to date by the tiling/animation
+    // system (see updateAnimations()) - dock-type windows skip that
+    // entirely (refreshDirtyWindows() continues past them before reaching
+    // it), so getRealSize() for a dock just sits at its unset default
+    // (0,0) forever. Their actual current size lives in EffectiveSize
+    // instead, which IS kept correct for them (set at creation in
+    // remapFloatingWindow, and on every resize in eventConfigure).
+    // Without this, shape application "runs" (logged) but computes a
+    // mask for a zero-sized window, so it has no visible effect at all.
+    const uint16_t W = pWindow->getFullscreen() ? MONITOR->vecSize.x : (pWindow->getDock() ? pWindow->getEffectiveSize().x : pWindow->getRealSize().x);
+    const uint16_t H = pWindow->getFullscreen() ? MONITOR->vecSize.y : (pWindow->getDock() ? pWindow->getEffectiveSize().y : pWindow->getRealSize().y);
+    // Docks get rounding (above) but never a border - they're not a regular
+    // focusable window, and border_size would also expand the shape mask's
+    // bounding box beyond the dock's own real geometry for no reason.
+    const uint16_t BORDER = pWindow->getFullscreen() || pWindow->getDock() || (ConfigManager::getInt("layout:no_gaps_when_only") && getWindowsOnWorkspace(pWindow->getWorkspaceID()) == 1) ? 0 : ConfigManager::getInt("border_size");
     const uint16_t TOTALW = W + 2 * BORDER;
     const uint16_t TOTALH = H + 2 * BORDER;
 
@@ -997,6 +1059,160 @@ CWindow* CWindowManager::findWindowAtCursor() {
     }
 
     return nullptr;
+}
+
+// Live drag-to-retile preview: while a tiled window is being mod-dragged
+// (it's floated the instant the drag starts, same as before this feature
+// - see eventButtonPress's own comment), called from eventMotionNotify on
+// every motion event to make the tiled layout visibly react to whatever's
+// currently under the cursor, as if the drag ended right now - reverting
+// the moment the hovered target changes. Two different mechanisms
+// depending on layout (see updateDragRetilePreview()'s own comment for
+// why), but one shared healing path: clearDragRetilePreview() always
+// correctly restores things via a plain recalcEntireWorkspace(), which
+// only ever reads the real, persisted tree/master state - never whatever
+// this function most recently overrode - regardless of which layout or
+// which window was being previewed.
+void CWindowManager::clearDragRetilePreview() {
+    if (DragPreviewTargetID == 0)
+        return;
+
+    if (const auto PPREV = getWindowFromDrawable(DragPreviewTargetID); PPREV)
+        recalcEntireWorkspace(PPREV->getWorkspaceID());
+
+    DragPreviewTargetID = 0;
+}
+
+void CWindowManager::updateDragRetilePreview(CWindow* pDraggedWindow) {
+    const auto LAYOUT = ConfigManager::getInt("layout");
+    if (LAYOUT != LAYOUT_DWINDLE && LAYOUT != LAYOUT_MASTER)
+        return;
+
+    const auto PTARGET = findWindowAtCursor();
+
+    const bool VALIDTARGET = PTARGET && PTARGET->getDrawable() != pDraggedWindow->getDrawable() && !PTARGET->getDock() &&
+        PTARGET->getWorkspaceID() == pDraggedWindow->getWorkspaceID();
+
+    const xcb_drawable_t NEWTARGETID = VALIDTARGET ? PTARGET->getDrawable() : 0;
+
+    if (NEWTARGETID == DragPreviewTargetID)
+        return; // same as last motion event - nothing changed, avoid a redundant recalc every single pixel of movement
+
+    clearDragRetilePreview();
+    DragPreviewTargetID = NEWTARGETID;
+
+    if (!VALIDTARGET)
+        return;
+
+    if (LAYOUT == LAYOUT_DWINDLE) {
+        // A real dwindle insertion next to a target only ever affects
+        // that target itself (it keeps half its old rect, the new
+        // window takes the other half - see calculateNewTileSetOldTile's
+        // own DWINDLE case, whose split math this mirrors) and never
+        // ripples further up the tree - so a single resize, touching
+        // neither the tree (ParentNodeID/ChildNodeAID/BID) nor any split
+        // ratio, is the complete, correct preview.
+        const auto SIZE = PTARGET->getSize();
+        if (SIZE.x > SIZE.y)
+            PTARGET->setSize(Vector2D(SIZE.x / 2.f, SIZE.y));
+        else
+            PTARGET->setSize(Vector2D(SIZE.x, SIZE.y / 2.f));
+
+        PTARGET->setDirty(true);
+        return;
+    }
+
+    // LAYOUT_MASTER: unlike dwindle, a real master insertion reflows the
+    // *whole* stack (every child's height is PMONITOR->vecSize.y /
+    // children.size() - adding one more changes that denominator for all
+    // of them, not just local neighbors - see recalcEntireWorkspace's own
+    // LAYOUT_MASTER case). Rather than reimplementing that math a second
+    // time, this calls the real recalcEntireWorkspace() and lets the
+    // dragged window itself be genuinely counted as one more child for
+    // the duration - its own children-list filter (!getMaster() && ...)
+    // has no floating check, so a floating window already gets counted
+    // fully correctly, no special-casing needed there.
+    //
+    // Two things specific to the dragged window need handling first,
+    // though: floating a window (starting this drag) already runs
+    // fixWindowOnClose()'s own master-layout fixup, which reassigns a
+    // new master if the dragged window *was* the master - but leaves
+    // the dragged window's own Master flag still true (never explicitly
+    // cleared - see fixMasterWorkspaceOnClosed's own code), which would
+    // wrongly exclude it from the children list below. And its
+    // MasterChildIndex is left stale from wherever it sat before the
+    // drag, not wherever it's actually hovering now - set explicitly so
+    // the stack reorders to reflect the real cursor position, matching
+    // dropping on the master itself to "become the new first child."
+    pDraggedWindow->setMaster(false);
+    pDraggedWindow->setMasterChildIndex(PTARGET->getMaster() ? 0 : PTARGET->getMasterChildIndex());
+
+    // recalcEntireWorkspace() would also reposition the dragged window
+    // itself (it's now correctly counted as a child) - save its real
+    // floating/cursor-following geometry first and restore it after, it
+    // must keep following the cursor, not snap into its preview slot.
+    const auto DRAGGEDPOS = pDraggedWindow->getPosition();
+    const auto DRAGGEDSIZE = pDraggedWindow->getSize();
+
+    recalcEntireWorkspace(pDraggedWindow->getWorkspaceID());
+
+    pDraggedWindow->setPosition(DRAGGEDPOS);
+    pDraggedWindow->setSize(DRAGGEDSIZE);
+    pDraggedWindow->setDirty(true);
+}
+
+void CWindowManager::reorderMasterChild(CWindow* pWindow) {
+    if (pWindow->getMaster())
+        return; // the master itself isn't part of the child list
+
+    const auto TARGETID = PendingDragRetileTarget;
+    PendingDragRetileTarget = 0;
+
+    std::vector<CWindow*> children;
+    for (auto& w : windows) {
+        if (w.getWorkspaceID() == pWindow->getWorkspaceID() && !w.getMaster() && w.getDrawable() > 0 && !w.getDead() && !w.getDock()
+            && w.getDrawable() != pWindow->getDrawable())
+            children.push_back(&w);
+    }
+
+    std::sort(children.begin(), children.end(), [](CWindow*& a, CWindow*& b) {
+        return a->getMasterChildIndex() < b->getMasterChildIndex();
+    });
+
+    // Find the rank the drop target currently holds among the other
+    // children (by drawable, not by reusing its raw MasterChildIndex as
+    // if it were already a compact position - see this function's own
+    // header comment for why that doesn't work). Dropping directly on the
+    // master itself is a separate case - the master isn't in `children`
+    // at all, and the existing convention (see updateDragRetilePreview's
+    // own master-branch) is "become the new first child", not "append at
+    // the end". No valid target hovered at all (TARGETID == 0) is the
+    // only case that genuinely falls through to appending at the end.
+    int insertPos = (int)children.size();
+    if (TARGETID != 0) {
+        if (const auto PTARGETWINDOW = getWindowFromDrawable(TARGETID); PTARGETWINDOW && PTARGETWINDOW->getMaster()) {
+            insertPos = 0;
+        } else {
+            for (size_t i = 0; i < children.size(); ++i) {
+                if (children[i]->getDrawable() == TARGETID) {
+                    insertPos = (int)i;
+                    break;
+                }
+            }
+        }
+    }
+
+    children.insert(children.begin() + insertPos, pWindow);
+
+    for (size_t i = 0; i < children.size(); ++i)
+        children[i]->setMasterChildIndex((int)i);
+
+    // remapWindow's own insertion (calculateNewTileSetOldTile's
+    // LAYOUT_MASTER case) already ran a recalc with the wrong, end-of-list
+    // index before this reorder happened - rerun it now that every
+    // sibling's index is corrected, or the fixed ordering would exist in
+    // data only, with every window still drawn at its stale position.
+    recalcEntireWorkspace(pWindow->getWorkspaceID());
 }
 
 CWindow* CWindowManager::findFirstWindowOnWorkspace(const int& work) {
@@ -2003,6 +2219,77 @@ void CWindowManager::setAWindowTop(xcb_window_t window) {
     Events::ignoredEvents.push_back(COOKIE.sequence);
 }
 
+void CWindowManager::setAWindowBottom(xcb_window_t window) {
+    Values[0] = XCB_STACK_MODE_BELOW;
+    const auto COOKIE = xcb_configure_window(g_pWindowManager->DisplayConnection, window, XCB_CONFIG_WINDOW_STACK_MODE, Values);
+    Events::ignoredEvents.push_back(COOKIE.sequence);
+}
+
+void CWindowManager::reassertAlwaysOnBottom() {
+    if (alwaysOnBottomWindows.empty())
+        return;
+
+    for (auto it = alwaysOnBottomWindows.begin(); it != alwaysOnBottomWindows.end();) {
+        const auto ATTRSREPLY = xcb_get_window_attributes_reply(DisplayConnection, xcb_get_window_attributes(DisplayConnection, *it), NULL);
+
+        if (!ATTRSREPLY || ATTRSREPLY->map_state != XCB_MAP_STATE_VIEWABLE) {
+            if (ATTRSREPLY)
+                free(ATTRSREPLY);
+            it = alwaysOnBottomWindows.erase(it);
+            continue;
+        }
+
+        free(ATTRSREPLY);
+
+        // Unlike reassertAlwaysOnTop(), no fullscreen-coverage carve-out -
+        // a fullscreen window covering a desktop widget is exactly the
+        // expected behavior, not something to fight.
+        setAWindowBottom(*it);
+
+        ++it;
+    }
+}
+
+void CWindowManager::reassertAlwaysOnTop() {
+    if (alwaysOnTopWindows.empty())
+        return;
+
+    for (auto it = alwaysOnTopWindows.begin(); it != alwaysOnTopWindows.end();) {
+        const auto ATTRSREPLY = xcb_get_window_attributes_reply(DisplayConnection, xcb_get_window_attributes(DisplayConnection, *it), NULL);
+
+        if (!ATTRSREPLY || ATTRSREPLY->map_state != XCB_MAP_STATE_VIEWABLE) {
+            if (ATTRSREPLY)
+                free(ATTRSREPLY);
+            it = alwaysOnTopWindows.erase(it);
+            continue;
+        }
+
+        free(ATTRSREPLY);
+
+        // Skip raising this popup if a fullscreen window (a game) is
+        // currently active on the same monitor it lives on - per explicit
+        // request, always-on-top shouldn't fight a fullscreen window for
+        // the top of the stack. Popups always open attached to a specific
+        // bar, so their geometry never spans more than one monitor.
+        const auto GEOMREPLY = xcb_get_geometry_reply(DisplayConnection, xcb_get_geometry(DisplayConnection, *it), NULL);
+        bool coveredByFullscreen = false;
+
+        if (GEOMREPLY) {
+            if (const auto MONITOR = getMonitorFromCoord(Vector2D(GEOMREPLY->x, GEOMREPLY->y)); MONITOR) {
+                if (const auto WORKSPACE = getWorkspaceByID(activeWorkspaces[MONITOR->ID]); WORKSPACE && WORKSPACE->getHasFullscreenWindow())
+                    coveredByFullscreen = true;
+            }
+
+            free(GEOMREPLY);
+        }
+
+        if (!coveredByFullscreen)
+            setAWindowTop(*it);
+
+        ++it;
+    }
+}
+
 bool CWindowManager::shouldBeFloatedOnInit(int64_t window) {
     // Should be floated also sets some properties
 
@@ -2079,6 +2366,16 @@ bool CWindowManager::shouldBeFloatedOnInit(int64_t window) {
             PWINDOW->setImmovable(true);
             return true;
         }
+        else if (rule.szRule == "alwaysbottom") {
+            // Desktop widgets (Clock/Weather/Media/SystemStats): same
+            // "don't tile it, don't let the tiling engine touch it" needs
+            // as nointerventions, plus AlwaysBottom itself (read by
+            // remapFloatingWindow() to populate alwaysOnBottomWindows).
+            PWINDOW->setNoInterventions(true);
+            PWINDOW->setImmovable(true);
+            PWINDOW->setAlwaysBottom(true);
+            return true;
+        }
     }
 
     return false;
@@ -2128,6 +2425,16 @@ void CWindowManager::doPostCreationChecks(CWindow* pWindow) {
     const auto NAME = getClassName(window);
     if (NAME.first == "Error" && NAME.second == "Error") {
         Debug::log(WARN, "Window created but has a class of NULL?");
+    }
+
+    // Desktop widgets: the "alwaysbottom" window rule already set this
+    // flag back in shouldBeFloatedOnInit() - track it here the same way
+    // alwaysOnTopWindows tracks Quickshell's override-redirect popups, so
+    // reassertAlwaysOnBottom() (called every event-loop tick, mirroring
+    // reassertAlwaysOnTop()) keeps lowering it below whatever else maps.
+    if (pWindow->getAlwaysBottom() &&
+        std::find(alwaysOnBottomWindows.begin(), alwaysOnBottomWindows.end(), window) == alwaysOnBottomWindows.end()) {
+        alwaysOnBottomWindows.push_back(window);
     }
 
     Debug::log(LOG, "Post creation checks ended");
@@ -2258,6 +2565,28 @@ void CWindowManager::toggleWindowFullscrenn(const int& window) {
         setAllWorkspaceWindowsUnderFullscreen(activeWorkspaces[MONITOR->ID]);
     else
         setAllWorkspaceWindowsAboveFullscreen(activeWorkspaces[MONITOR->ID]);
+
+    // Neither branch above (nor anything in refreshDirtyWindows()'s own
+    // fullscreen handling) ever actually issues an XCB restack - a window
+    // going fullscreen visually covers Zaris-managed windows below it
+    // simply by being resized to fill the monitor while already
+    // reasonably near the top of the stack from having just been focused/
+    // clicked. That's not true for Quickshell's override-redirect popups
+    // (Settings, Control Center, etc. - see reassertAlwaysOnTop()'s own
+    // comment) - they're never part of the focus-driven raise dance at
+    // all, so if one was already open before this window went fullscreen,
+    // nothing was ever pushing it out of the way and it would sit on top
+    // of the game indefinitely, exactly the case the "except fullscreen
+    // ones" carve-out in reassertAlwaysOnTop() is meant to respect. A
+    // one-time real raise of the newly-fullscreened window to the actual
+    // top of X11's stacking order (not just the WM's own tracked windows -
+    // XCB stacking is global across all children of root, override-
+    // redirect included) puts it above any already-open always-on-top
+    // popup too; reassertAlwaysOnTop() then leaves it there by skipping
+    // its own raise for as long as this workspace's fullscreen flag stays
+    // set, rather than fighting back on the very next event-loop tick.
+    if (PWINDOW->getFullscreen())
+        setAWindowTop(window);
 
     // EWMH 
     Values[0] = ZARISATOMS["_NET_WM_STATE_FULLSCREEN"];

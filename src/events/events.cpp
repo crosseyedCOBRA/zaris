@@ -1,5 +1,7 @@
 #include "events.hpp"
 
+#include <algorithm>
+
 gpointer handle(gpointer data) {
     int lazyUpdateCounter = 0;
 
@@ -154,8 +156,52 @@ void Events::eventUnmapWindow(xcb_generic_event_t* event) {
 
     Debug::log(LOG, "Unmap called on " + std::to_string(E->window) + " -> " + PCLOSEDWINDOW->getName());
 
-    if (!PCLOSEDWINDOW->getDock())
-        g_pWindowManager->closeWindowAllChecks(E->window);
+    // Real bug fixed here: a dock-type window (bar/dock) that's currently
+    // getDockHidden() was unmapped by our OWN processDockHiding() - a
+    // fullscreen window on its monitor's active workspace, not a real
+    // close. That function relies on Events::ignoredEvents (a sequence-
+    // number match) to suppress the resulting UnmapNotify, but that list
+    // is capped at 20 entries (see recieveEvent()) and gets trimmed on
+    // every subsequent real event - under the burst of window/property
+    // events a game exiting fullscreen generates, the entry for the dock's
+    // own unmap can be evicted before its UnmapNotify actually arrives,
+    // so it falls through to here and gets treated as a genuine close:
+    // closeWindowAllChecks() removes it from tracking permanently via
+    // removeWindowFromVectorSafe(), so it's simply gone from `windows` by
+    // the time processDockHiding() later wants to re-map it once
+    // getHasFullscreenWindow() clears - explaining the reported "bar on
+    // the primary monitor never comes back after exiting a fullscreen
+    // game" (a `qs kill` + relaunch works around it only because that
+    // creates a brand new window with a fresh MapRequest, unrelated to
+    // this stale tracking entry).
+    //
+    // getDockHidden() is ONLY ever set true by that one code path (grep
+    // confirms no other setDockHidden(true) call site exists), so it's a
+    // reliable signal - independent of the racy sequence-number list -
+    // that THIS specific unmap is our own intentional, temporary hide
+    // rather than a real close or the dock's config-disable toggle (which
+    // unmaps via Quickshell's own `visible: false`, with getDockHidden()
+    // staying false throughout). Skipping closeWindowAllChecks entirely
+    // for this case leaves the window's tracking entry intact so
+    // processDockHiding()'s later xcb_map_window() call has something to
+    // act on.
+    //
+    // Previously skipped entirely for dock-type windows, which meant
+    // hiding one (e.g. Dock.qml's DockConfig.enabled toggle) never
+    // released its reserved space - closeWindowAllChecks already has
+    // correct dock handling (removes it from tracking, then
+    // recalcAllDocks()) for that genuine-close/disable case, it just
+    // wasn't being called at all before. Never mattered before since
+    // nothing ever hid a dock-type window at runtime until the dock's
+    // enable/disable toggle - this fullscreen-hide interaction is a
+    // second, later runtime source of dock unmaps that toggle didn't
+    // anticipate.
+    if (PCLOSEDWINDOW->getDock() && PCLOSEDWINDOW->getDockHidden()) {
+        Debug::log(LOG, "Unmap on " + std::to_string(E->window) + " is our own fullscreen dock-hide, not a real close - skipping closeWindowAllChecks");
+        return;
+    }
+
+    g_pWindowManager->closeWindowAllChecks(E->window);
 
     // refocus on new window
     g_pWindowManager->refocusWindowOnClosed();
@@ -407,6 +453,116 @@ CWindow* Events::remapFloatingWindow(int windowID, int forcemonitor) {
                     MONITOR.vecPosition.y + MARGINY));
             } catch (...) {
                 Debug::log(LOG, "Rule topright failed, rule: " + rule.szRule + "=" + rule.szValue);
+            }
+        } else if (rule.szRule.find("topleft") == 0) {
+            // Mirror of "topright" - anchored to the monitor's top-left
+            // corner instead, for desktop widgets (Clock.qml and friends)
+            // that want a fixed corner regardless of the monitor's actual
+            // resolution. marginX/marginY are the gap from the monitor's
+            // left/top edges to the window's left/top edges.
+            try {
+                const auto VALUE = rule.szRule.substr(rule.szRule.find(" ") + 1);
+                const auto MARGINX = stoi(VALUE.substr(0, VALUE.find(" ")));
+                const auto MARGINY = stoi(VALUE.substr(VALUE.find(" ") + 1));
+
+                Debug::log(LOG, "Rule topleft, applying to window " + std::to_string(windowID));
+
+                const auto& MONITOR = g_pWindowManager->monitors[CURRENTSCREEN];
+                PWINDOWINARR->setDefaultPosition(Vector2D(
+                    MONITOR.vecPosition.x + MARGINX,
+                    MONITOR.vecPosition.y + MARGINY));
+            } catch (...) {
+                Debug::log(LOG, "Rule topleft failed, rule: " + rule.szRule + "=" + rule.szValue);
+            }
+        } else if (rule.szRule.find("bottomleft") == 0) {
+            // Mirror of "topleft" - anchored to the monitor's bottom-left
+            // corner instead, for desktop widgets that want that corner
+            // specifically (DesktopMedia.qml). marginX/marginY are the
+            // gap from the monitor's left/bottom edges to the window's
+            // left/bottom edges.
+            try {
+                const auto VALUE = rule.szRule.substr(rule.szRule.find(" ") + 1);
+                const auto MARGINX = stoi(VALUE.substr(0, VALUE.find(" ")));
+                const auto MARGINY = stoi(VALUE.substr(VALUE.find(" ") + 1));
+
+                Debug::log(LOG, "Rule bottomleft, applying to window " + std::to_string(windowID));
+
+                const auto& MONITOR = g_pWindowManager->monitors[CURRENTSCREEN];
+                PWINDOWINARR->setDefaultPosition(Vector2D(
+                    MONITOR.vecPosition.x + MARGINX,
+                    MONITOR.vecPosition.y + MONITOR.vecSize.y - PWINDOWINARR->getDefaultSize().y - MARGINY));
+            } catch (...) {
+                Debug::log(LOG, "Rule bottomleft failed, rule: " + rule.szRule + "=" + rule.szValue);
+            }
+        } else if (rule.szRule.find("bottomcenter") == 0) {
+            // Like "topright", but anchored to the bottom-center of the
+            // monitor instead - for the floating-mode dock (Dock.qml),
+            // horizontally centered regardless of the monitor's actual
+            // resolution. marginY is the gap from the monitor's bottom edge
+            // to the window's bottom edge.
+            try {
+                const auto MARGINY = stoi(rule.szRule.substr(rule.szRule.find(" ") + 1));
+
+                Debug::log(LOG, "Rule bottomcenter, applying to window " + std::to_string(windowID));
+
+                const auto& MONITOR = g_pWindowManager->monitors[CURRENTSCREEN];
+                PWINDOWINARR->setDefaultPosition(Vector2D(
+                    MONITOR.vecPosition.x + (MONITOR.vecSize.x - PWINDOWINARR->getDefaultSize().x) / 2.f,
+                    MONITOR.vecPosition.y + MONITOR.vecSize.y - PWINDOWINARR->getDefaultSize().y - MARGINY));
+            } catch (...) {
+                Debug::log(LOG, "Rule bottomcenter failed, rule: " + rule.szRule + "=" + rule.szValue);
+            }
+        } else if (rule.szRule.find("topcenter") == 0) {
+            // Mirror of "bottomcenter" - anchored to the top-center of the
+            // monitor instead, for the floating-mode dock (Dock.qml) when
+            // Settings' Dock position is "top". marginY is the gap from the
+            // monitor's top edge to the window's top edge.
+            try {
+                const auto MARGINY = stoi(rule.szRule.substr(rule.szRule.find(" ") + 1));
+
+                Debug::log(LOG, "Rule topcenter, applying to window " + std::to_string(windowID));
+
+                const auto& MONITOR = g_pWindowManager->monitors[CURRENTSCREEN];
+                PWINDOWINARR->setDefaultPosition(Vector2D(
+                    MONITOR.vecPosition.x + (MONITOR.vecSize.x - PWINDOWINARR->getDefaultSize().x) / 2.f,
+                    MONITOR.vecPosition.y + MARGINY));
+            } catch (...) {
+                Debug::log(LOG, "Rule topcenter failed, rule: " + rule.szRule + "=" + rule.szValue);
+            }
+        } else if (rule.szRule.find("leftcenter") == 0) {
+            // Same family as "topcenter"/"bottomcenter", anchored to the
+            // vertical center of the monitor's left edge instead - for the
+            // floating-mode dock when Settings' Dock position is "left".
+            // marginX is the gap from the monitor's left edge to the
+            // window's left edge.
+            try {
+                const auto MARGINX = stoi(rule.szRule.substr(rule.szRule.find(" ") + 1));
+
+                Debug::log(LOG, "Rule leftcenter, applying to window " + std::to_string(windowID));
+
+                const auto& MONITOR = g_pWindowManager->monitors[CURRENTSCREEN];
+                PWINDOWINARR->setDefaultPosition(Vector2D(
+                    MONITOR.vecPosition.x + MARGINX,
+                    MONITOR.vecPosition.y + (MONITOR.vecSize.y - PWINDOWINARR->getDefaultSize().y) / 2.f));
+            } catch (...) {
+                Debug::log(LOG, "Rule leftcenter failed, rule: " + rule.szRule + "=" + rule.szValue);
+            }
+        } else if (rule.szRule.find("rightcenter") == 0) {
+            // Mirror of "leftcenter" - anchored to the vertical center of
+            // the monitor's right edge, for the floating-mode dock when
+            // Settings' Dock position is "right". marginX is the gap from
+            // the monitor's right edge to the window's right edge.
+            try {
+                const auto MARGINX = stoi(rule.szRule.substr(rule.szRule.find(" ") + 1));
+
+                Debug::log(LOG, "Rule rightcenter, applying to window " + std::to_string(windowID));
+
+                const auto& MONITOR = g_pWindowManager->monitors[CURRENTSCREEN];
+                PWINDOWINARR->setDefaultPosition(Vector2D(
+                    MONITOR.vecPosition.x + MONITOR.vecSize.x - PWINDOWINARR->getDefaultSize().x - MARGINX,
+                    MONITOR.vecPosition.y + (MONITOR.vecSize.y - PWINDOWINARR->getDefaultSize().y) / 2.f));
+            } catch (...) {
+                Debug::log(LOG, "Rule rightcenter failed, rule: " + rule.szRule + "=" + rule.szValue);
             }
         }
     }
@@ -740,6 +896,84 @@ void Events::eventMapWindow(xcb_generic_event_t* event) {
     EWMH::updateWindow(E->window);
 }
 
+// Quickshell's PopupWindow (Settings, Control Center, the taskbar-mode
+// launcher, the calendar flyout, tooltips - anything anchored to the bar
+// rather than opened as a real WM-managed floating window) is created as a
+// genuine X11 override-redirect window, same reasoning eventEnter()'s own
+// override-redirect skip already relies on for menus/tooltips (see its own
+// comment). Override-redirect windows never send a MapRequest - the
+// SubstructureRedirect that eventMapWindow()/XCB_MAP_REQUEST relies on
+// specifically excludes them - so this is a separate hook on plain
+// XCB_MAP_NOTIFY (already delivered for every child of root, override-
+// redirect or not, since XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY is selected on
+// root regardless) purely to catch these and register them for the
+// "Settings/Control Center should stay always-on-top of other windows,
+// except fullscreen ones" fix (reassertAlwaysOnTop(), called every event-
+// loop tick from handleEvent()).
+//
+// There's no way at the X11 level to distinguish specifically Settings/
+// Control Center from Quickshell's other PopupWindow-based popups (the
+// calendar flyout, taskbar launcher, tooltips) - confirmed live via xprop:
+// every one of them reports the same override_redirect=1 and the same
+// _NET_WM_NAME "quickshell" (Quickshell's own app identity, not a per-
+// window title - PopupWindow doesn't expose a title property at all, per
+// ControlCenter.qml's own header comment) regardless of which QML file
+// actually created it. Rather than guess at a narrower, unreliable
+// heuristic, every Quickshell override-redirect popup gets treated as
+// always-on-top uniformly - a tooltip or the calendar flyout getting
+// covered by a newly raised window would be just as much a real bug as
+// Settings/Control Center being covered, so this isn't overreach, just the
+// only option X11 actually offers here.
+//
+// _NET_WM_WINDOW_TYPE is normally _NET_WM_WINDOW_TYPE_TOOLTIP for all of
+// them (Quickshell's own default for PopupWindow) - except when a specific
+// popup sets PopupWindow's built-in `grabFocus: true` (Launcher.qml's
+// taskbar-mode variant, as of this fix), which flips it to
+// _NET_WM_WINDOW_TYPE_NORMAL instead. That's a real, deliberate signal
+// from the QML side, confirmed live via xprop (before/after adding
+// grabFocus: true), not an incidental side effect - Quickshell has no
+// other way to tell an X11 WM "this override-redirect popup wants real
+// keyboard focus" (there's no MapRequest to react to, and confirmed live
+// via a temporary ClientMessage-logging build that Quickshell never sends
+// a _NET_ACTIVE_WINDOW request for these either). Both type atoms count as
+// "this is one of ours" for always-on-top tracking; only the NORMAL one
+// also gets real X11 input focus below - Tooltip.qml/CalendarFlyout.qml
+// never set grabFocus and stay TOOLTIP-typed, so a hover-triggered tooltip
+// can never rip keyboard focus away from whatever the user is actually
+// typing into elsewhere, while a popup that deliberately opted in (the
+// taskbar launcher's search field, potentially Settings' text fields
+// later) gets it immediately on map - matching what the statusbar-mode
+// FloatingWindow variant already gets for free from the WM's normal
+// managed-window focus-on-map path (remapFloatingWindow).
+void Events::eventMapNotify(xcb_generic_event_t* event) {
+    const auto E = reinterpret_cast<xcb_map_notify_event_t*>(event);
+
+    if (!E->override_redirect)
+        return;
+
+    const auto WMTYPEREPLY = xcb_get_property_reply(g_pWindowManager->DisplayConnection,
+        xcb_get_property(g_pWindowManager->DisplayConnection, false, E->window, ZARISATOMS["_NET_WM_WINDOW_TYPE"], XCB_GET_PROPERTY_TYPE_ANY, 0, 4096), NULL);
+
+    const bool ISTOOLTIPTYPE = WMTYPEREPLY && xcbContainsAtom(WMTYPEREPLY, ZARISATOMS["_NET_WM_WINDOW_TYPE_TOOLTIP"]);
+    const bool ISNORMALTYPE = WMTYPEREPLY && xcbContainsAtom(WMTYPEREPLY, ZARISATOMS["_NET_WM_WINDOW_TYPE_NORMAL"]);
+
+    if (WMTYPEREPLY)
+        free(WMTYPEREPLY);
+
+    if ((!ISTOOLTIPTYPE && !ISNORMALTYPE) || getWindowName(E->window) != "quickshell")
+        return;
+
+    if (std::find(g_pWindowManager->alwaysOnTopWindows.begin(), g_pWindowManager->alwaysOnTopWindows.end(), E->window) == g_pWindowManager->alwaysOnTopWindows.end()) {
+        Debug::log(LOG, "Tracking new always-on-top Quickshell popup: " + std::to_string(E->window));
+        g_pWindowManager->alwaysOnTopWindows.push_back(E->window);
+    }
+
+    if (ISNORMALTYPE) {
+        Debug::log(LOG, "Quickshell popup " + std::to_string(E->window) + " requested grabFocus - giving it real X11 input focus.");
+        xcb_set_input_focus(g_pWindowManager->DisplayConnection, XCB_INPUT_FOCUS_POINTER_ROOT, E->window, XCB_CURRENT_TIME);
+    }
+}
+
 void Events::eventButtonPress(xcb_generic_event_t* event) {
     const auto E = reinterpret_cast<xcb_button_press_event_t*>(event);
 
@@ -777,6 +1011,22 @@ void Events::eventButtonRelease(xcb_generic_event_t* event) {
     // ungrab the mouse ptr
     xcb_ungrab_pointer(g_pWindowManager->DisplayConnection, XCB_CURRENT_TIME);
 
+    // Master layout's drop commit (reorderMasterChild(), called below via
+    // toggleActiveWindowFloating -> KeybindManager.cpp) needs to know which
+    // window was hovered at the moment of the drop, once it finally runs
+    // against the dragged window's rebuilt CWindow object - captured here,
+    // before clearDragRetilePreview() resets DragPreviewTargetID to 0.
+    g_pWindowManager->PendingDragRetileTarget = g_pWindowManager->DragPreviewTargetID;
+
+    // Heal whichever window the live drag-retile preview last shrank,
+    // unconditionally and before the real re-tile below - the real
+    // insertion (toggleActiveWindowFloating -> remapWindow ->
+    // calculateNewTileSetOldTile) reads the hovered window's CURRENT
+    // size/position as the base rect to split from, so a still-shrunk
+    // preview at the exact moment of drop would make the real split
+    // compute from an already-halved rect instead of the true one.
+    g_pWindowManager->clearDragRetilePreview();
+
     if (PACTINGWINDOW) {
         PACTINGWINDOW->setDirty(true);
 
@@ -784,7 +1034,7 @@ void Events::eventButtonRelease(xcb_generic_event_t* event) {
             g_pWindowManager->LastWindow = PACTINGWINDOW->getDrawable();
             KeybindManager::toggleActiveWindowFloating("");
         }
-            
+
     }
 
     g_pWindowManager->actingOnWindowFloating = 0;
@@ -843,9 +1093,15 @@ void Events::eventMotionNotify(xcb_generic_event_t* event) {
             PACTINGWINDOW->setWorkspaceID(WORKSPACE);
         } else {
             Debug::log(WARN, "Monitor was nullptr! Ignoring workspace change in MouseMoveEvent.");
-        } 
+        }
 
         PACTINGWINDOW->setDirty(true);
+
+        // Live drag-to-retile preview - only meaningful for a window that
+        // started this drag tiled (now floated for the duration, see
+        // eventButtonPress) and hasn't been released yet.
+        if (PACTINGWINDOW->getDraggingTiled())
+            g_pWindowManager->updateDragRetilePreview(PACTINGWINDOW);
     } else if (g_pWindowManager->mouseKeyDown == 3) {
 
         if (!PACTINGWINDOW->getIsFloating()) {
@@ -923,6 +1179,21 @@ void Events::eventConfigure(xcb_generic_event_t* event) {
     PWINDOW->setDefaultSize(Vector2D(E->width, E->height));
     PWINDOW->setEffectiveSize(PWINDOW->getDefaultSize());
     PWINDOW->setEffectivePosition(PWINDOW->getDefaultPosition());
+    // Position/Size (as opposed to Default/EffectivePosition/Size above) are
+    // what recalcAllDocks() itself reads to decide which screen edge a dock
+    // window's reserved space belongs on (see its top/bottom/left/right
+    // check against getPosition()/getSize()). Only Default/Effective used to
+    // get updated here, so a dock that moves at runtime without remapping -
+    // e.g. Zaris's own bar toggling BarConfig.position between "top" and
+    // "bottom" - kept reporting its OLD position/size to recalcAllDocks()
+    // forever after the first map, since nothing ever refreshed Position/
+    // Size past that point. recalcAllDocks() then reserved space on the
+    // stale edge while the window itself visibly moved to the new one (that
+    // part already worked, since it moves the window using
+    // getDefaultPosition()/getDefaultSize()), leaving the old edge's
+    // reserved gap permanently unreclaimed and the new edge under-reserved.
+    PWINDOW->setPosition(PWINDOW->getDefaultPosition());
+    PWINDOW->setSize(PWINDOW->getDefaultSize());
 
     // Docks (bars/panels) often resize themselves shortly after mapping, once their
     // content finishes laying out (e.g. Quickshell's QML bindings resolve a tick late).
@@ -938,8 +1209,27 @@ void Events::eventConfigure(xcb_generic_event_t* event) {
     const bool GEOMETRYCHANGED = OLDDEFAULTPOS.x != PWINDOW->getDefaultPosition().x || OLDDEFAULTPOS.y != PWINDOW->getDefaultPosition().y ||
                                   OLDDEFAULTSIZE.x != PWINDOW->getDefaultSize().x || OLDDEFAULTSIZE.y != PWINDOW->getDefaultSize().y;
 
-    if (PWINDOW->getDock() && GEOMETRYCHANGED)
+    if (PWINDOW->getDock() && GEOMETRYCHANGED) {
         g_pWindowManager->recalcAllDocks();
+    } else if (GEOMETRYCHANGED) {
+        // recalcAllDocks() above is what actually pushes a dock's granted
+        // geometry to the X server via xcb_configure_window - for any other
+        // floating window, nothing ever did that, so a non-dock floating
+        // window resizing itself post-map (e.g. Dock.qml's "floating" mode
+        // growing/shrinking as icons come and go) had its internal
+        // bookkeeping (setDefaultSize/setEffectiveSize above) updated with
+        // nothing ever applied on screen - the window just stayed its old
+        // size, matching the "resizes fine in reserved mode, not floating"
+        // report exactly, since reserved mode is dock-type and already
+        // went through recalcAllDocks().
+        uint32_t configValues[2];
+        configValues[0] = static_cast<uint32_t>(PWINDOW->getDefaultPosition().x);
+        configValues[1] = static_cast<uint32_t>(PWINDOW->getDefaultPosition().y);
+        xcb_configure_window(g_pWindowManager->DisplayConnection, E->window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, configValues);
+        configValues[0] = static_cast<uint32_t>(PWINDOW->getDefaultSize().x);
+        configValues[1] = static_cast<uint32_t>(PWINDOW->getDefaultSize().y);
+        xcb_configure_window(g_pWindowManager->DisplayConnection, E->window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, configValues);
+    }
 }
 
 void Events::eventRandRScreenChange(xcb_generic_event_t* event) {
@@ -1004,3 +1294,4 @@ void Events::eventRandRScreenChange(xcb_generic_event_t* event) {
     // Make all windows dirty and recalc all workspaces
     g_pWindowManager->recalcAllWorkspaces();
 }
+
