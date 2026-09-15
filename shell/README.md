@@ -74,6 +74,7 @@ See [../DEPENDENCIES.md](../DEPENDENCIES.md) for exact package names
 - **NetworkManager** (`nmcli`) — a pre-existing gap in this list, just never logged until the Network flyout pass (`NetworkPanel.qml`/`WifiNetworksService.qml`) made the dependency obvious enough to notice: every network-related bar module and the Network flyout itself (status/toggle icons, the VPN toggle, the wifi scan/connect list, the ethernet device list) go entirely through `nmcli`, with `NetworkManager.service` actually running and managing the machine's interfaces
 - An icon theme (Papirus-Dark in the reference `dunstrc`) — for notification icons
 - `loginctl` (systemd-logind, or **elogind** on a non-systemd system) — the power menu's suspend/reboot/shutdown actions
+- **xrdb** (usually part of `x11-xserver-utils`/`xorg-x11-server-utils`) — `start-zaris.sh` sources `apply-cursor-theme.sh`, which syncs `zaris.conf`'s `cursor_theme`/`cursor_size` into the X resource database via `xrdb -merge`, alongside `~/.icons/default`/GTK's `settings.ini`, so the WM's own root cursor, GTK apps, Qt apps, and plain Xlib/XCB apps all agree on one cursor theme instead of each independently showing whatever it last picked up on its own. Guarded by `command -v xrdb` - missing it just skips that one sync step rather than failing the session
 
 ## Known machine-specific bits
 

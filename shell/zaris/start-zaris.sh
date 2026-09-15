@@ -5,6 +5,12 @@
 # that needs to happen here rather than in zaris.conf's exec-once (which
 # runs after ZarisWM has already connected and read the layout once).
 #
+# Same "must happen before Zaris starts, not in an exec-once line" reason
+# applies to the cursor theme sync below - see apply-cursor-theme.sh's
+# own header comment for why. Sourced, not executed as its own
+# subprocess, specifically so its `export XCURSOR_THEME`/`XCURSOR_SIZE`
+# land in *this* shell and get inherited by `exec zaris` below.
+#
 # Four monitors: DP-1 primary + DP-2 (rotated right, so its displayed
 # width is 1080, not 1920 - that's why DP-3's --pos starts at 3000, not
 # 3840) + DP-3 side by side, HDMI-1 mirroring DP-1 via --same-as.
@@ -13,5 +19,7 @@ xrandr \
   --output DP-2 --mode 1920x1080 --rate 144 --rotate right --pos 1920x0 \
   --output DP-3 --mode 1920x1080 --rate 144 --pos 3000x0 \
   --output HDMI-1 --mode 1920x1080 --rate 60 --same-as DP-1
+
+source "$(dirname "$0")/apply-cursor-theme.sh"
 
 exec zaris
