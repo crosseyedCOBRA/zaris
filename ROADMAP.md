@@ -819,6 +819,18 @@ Researched (via the shell's GitHub README, docs.noctalia.dev, and targeted searc
 
   **Verification honestly scoped**: this machine has no VPN configured (confirmed via the real `nmcli -t -f NAME,TYPE,ACTIVE connection show` output - ethernet + loopback only), so the *positive* path (an active VPN, toggling it off, connecting one) is entirely unverified against real NetworkManager state - only that the parsing logic is correct against this machine's real (VPN-less) `nmcli` output, and that self-hiding when there's nothing to show works exactly as intended (confirmed via a live screenshot, no blank gap where the icon would be). Needs a real VPN profile to actually exercise the connect/disconnect path and icon state change.
 
+- **[Done]** Privacy indicator bar module - third of the four deferred Noctalia/DMS gap-analysis items, and the first genuinely fully verified end-to-end (not just structurally/self-hide verified) of the four. New `PrivacyIndicator.qml`: a mic icon shown while something is actively recording audio, a camera icon shown while something has a webcam device open, each independently visible/hidden, the whole module self-hidden when neither applies.
+
+  **Mic**: reuses `AudioMixer.qml`'s own already-verified Pipewire node signature for "a real capture stream" - `!isSink && isStream` (as opposed to `!isSink && !isStream`, a hardware input *device* like the mic itself, present regardless of whether anything's actually recording from it). Existence of the stream node is the signal; Pipewire creates/destroys these as an app opens/closes its own recording, not just a flag toggling on an always-present node.
+
+  **Camera**: no Pipewire equivalent (webcams go through V4L2 directly on this system) - polls `fuser /dev/video*` instead, exit code only (0 = something has it open), not output parsing, since which process has it open is irrelevant here.
+
+  **Deliberately does not attempt screen-recording detection**, unlike Noctalia's own version - X11 has no centralized, portal-mediated signal for "something is capturing the screen" the way Wayland's `xdg-desktop-portal` ScreenCast interface provides. An X11 capture tool just grabs pixels directly (XShm/XComposite) with nothing to detect system-wide; building a fake/unreliable heuristic would be worse than not having it. Documented as a real, deliberate scope boundary, not a silently dropped feature.
+
+  Also applied the `implicitWidth`/`Height` collapse-when-hidden fix from the start (third time in a row now, after Brightness/Battery and VPN).
+
+  **Verified live, genuinely end-to-end this time** - the one advantage this specific module had over VPN/color picker: microphone recording is trivially producible on any machine regardless of hardware, unlike a configured VPN profile or a precise synthetic click. Started a real `pw-record` capture against `@DEFAULT_SOURCE@`, confirmed via a live screenshot that the red mic icon appears correctly; stopped it, confirmed via a second screenshot that it disappears again cleanly with no blank gap left behind. The camera path is unverified (no `/dev/video*` device on this machine, same "self-hide path confirmed, positive path isn't" honesty already applied to VPN) but the mic path - the more commonly relevant half of this feature - has real, not assumed, confirmation.
+
 ## Bugs — reported 2026-09-09
 
 All 7 fixed/resolved same-day - see the matching entries folded into Done/working above (always-on-top, taskbar launcher focus, bar opacity's real root cause, Settings text fields, `NIconButton` icon centering, the notification panel's anchoring, and the Chromium/Flatpak media-art root cause).

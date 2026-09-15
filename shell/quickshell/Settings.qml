@@ -322,7 +322,8 @@ PopupWindow {
         taskbar: "Taskbar (running apps)",
         controlCenter: "Control Center",
         colorPicker: "Color picker",
-        vpn: "VPN"
+        vpn: "VPN",
+        privacy: "Privacy (mic/camera in use)"
     })
 
     // Control Center tab's own chip labels - a few of these read

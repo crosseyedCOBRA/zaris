@@ -81,6 +81,7 @@ Row {
                     case "volume": return volumeComponent
                     case "colorPicker": return colorPickerComponent
                     case "vpn": return vpnComponent
+                    case "privacy": return privacyComponent
                     default: return null
                     }
                 }
@@ -107,6 +108,14 @@ Row {
         VpnToggle {
             textColor: Colors.textMuted
             activeColor: Colors.teal
+        }
+    }
+
+    Component {
+        id: privacyComponent
+        PrivacyIndicator {
+            micColor: Colors.red
+            cameraColor: Colors.red
         }
     }
 

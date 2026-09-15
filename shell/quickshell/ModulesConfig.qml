@@ -48,7 +48,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy"]
 
     // The subset Settings' new "Bar Modules" tab lets you add/reorder -
     // every id above except mediaPlayer, which has no bar-side rendering
@@ -176,6 +176,11 @@ QtObject {
             // VpnToggle.qml's own `hasVpn` check when no VPN connection
             // is configured, same graceful-degrade pattern.
             property var vpn: ({ enabled: true, screens: "all", tray: false })
+            // Enabled by default - self-hides via PrivacyIndicator.qml's
+            // own `anyActive` check when nothing is recording/no camera
+            // is open, same graceful-degrade pattern as vpn/battery/
+            // brightness above.
+            property var privacy: ({ enabled: true, screens: "all", tray: false })
 
             // Control Center's vertical gauge stack (CPU load/CPU temp/
             // GPU temp/RAM) - deliberately NOT the same enabled/screens/
