@@ -1,6 +1,7 @@
 #include "windowManager.hpp"
 #include "./events/events.hpp"
 #include <string.h>
+#include <algorithm>
 
 xcb_visualtype_t* CWindowManager::setupColors(const int& desiredDepth) {
     auto depthIter = xcb_screen_allowed_depths_iterator(Screen);
@@ -1158,6 +1159,35 @@ void CWindowManager::updateDragRetilePreview(CWindow* pDraggedWindow) {
     pDraggedWindow->setPosition(DRAGGEDPOS);
     pDraggedWindow->setSize(DRAGGEDSIZE);
     pDraggedWindow->setDirty(true);
+}
+
+void CWindowManager::reorderMasterChild(CWindow* pWindow, int targetIndex) {
+    if (pWindow->getMaster())
+        return; // the master itself isn't part of the child list
+
+    std::vector<CWindow*> children;
+    for (auto& w : windows) {
+        if (w.getWorkspaceID() == pWindow->getWorkspaceID() && !w.getMaster() && w.getDrawable() > 0 && !w.getDead() && !w.getDock()
+            && w.getDrawable() != pWindow->getDrawable())
+            children.push_back(&w);
+    }
+
+    std::sort(children.begin(), children.end(), [](CWindow*& a, CWindow*& b) {
+        return a->getMasterChildIndex() < b->getMasterChildIndex();
+    });
+
+    const int CLAMPEDTARGET = std::clamp(targetIndex, 0, (int)children.size());
+    children.insert(children.begin() + CLAMPEDTARGET, pWindow);
+
+    for (size_t i = 0; i < children.size(); ++i)
+        children[i]->setMasterChildIndex((int)i);
+
+    // remapWindow's own insertion (calculateNewTileSetOldTile's
+    // LAYOUT_MASTER case) already ran a recalc with the wrong, end-of-list
+    // index before this reorder happened - rerun it now that every
+    // sibling's index is corrected, or the fixed ordering would exist in
+    // data only, with every window still drawn at its stale position.
+    recalcEntireWorkspace(pWindow->getWorkspaceID());
 }
 
 CWindow* CWindowManager::findFirstWindowOnWorkspace(const int& work) {

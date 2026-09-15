@@ -240,6 +240,16 @@ void KeybindManager::toggleActiveWindowFloating(std::string arg) {
             const auto RESTOREREALS = PWINDOW->getRealSize();
             const auto RESTOREREALP = PWINDOW->getRealPosition();
             const auto RESTOREDRAGT = PWINDOW->getDraggingTiled();
+            // Only meaningful alongside RESTOREDRAGT: the drag preview
+            // (updateDragRetilePreview, master layout) continuously set
+            // this to whatever child slot was last hovered, so by the
+            // time of the drop it already holds the intended drop
+            // position - captured now because the CWindow object it
+            // lives on is about to be destroyed and rebuilt below, which
+            // would otherwise lose it (remapWindow's own insertion always
+            // appends at the end, correct for a brand new window but not
+            // for restoring a drag's drop position).
+            const auto RESTOREMASTERIDX = PWINDOW->getMasterChildIndex();
 
             g_pWindowManager->removeWindowFromVectorSafe(PWINDOW->getDrawable());
 
@@ -259,6 +269,9 @@ void KeybindManager::toggleActiveWindowFloating(std::string arg) {
             PNEWWINDOW->setRealPosition(RESTOREREALP);
             PNEWWINDOW->setRealSize(RESTOREREALS);
             PNEWWINDOW->setDraggingTiled(RESTOREDRAGT);
+
+            if (RESTOREDRAGT && ConfigManager::getInt("layout") == LAYOUT_MASTER)
+                g_pWindowManager->reorderMasterChild(PNEWWINDOW, RESTOREMASTERIDX);
         }
 
         // EWMH to let everyone know

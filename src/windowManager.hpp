@@ -49,6 +49,18 @@ public:
     // moving to a new target, not unconditionally.
     void                        clearDragRetilePreview();
 
+    // Master layout only: splices pWindow into the workspace's master
+    // child list at targetIndex (clamped to the list's bounds) and
+    // renumbers every sibling's MasterChildIndex sequentially, so the
+    // drop actually lands where the live drag preview showed it landing.
+    // Needed because toggleActiveWindowFloating's un-float path destroys
+    // and rebuilds the CWindow (see KeybindManager.cpp), which loses the
+    // MasterChildIndex the drag preview had set - remapWindow's own
+    // insertion always appends new/rebuilt windows at the end of the
+    // list instead, which is correct for a genuinely new window but
+    // silently discards a drag's intended drop position.
+    void                        reorderMasterChild(CWindow* pWindow, int targetIndex);
+
     bool                        scratchpadActive = false;
 
     uint8_t                     Depth = 32;
