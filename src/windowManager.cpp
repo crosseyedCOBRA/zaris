@@ -1161,9 +1161,12 @@ void CWindowManager::updateDragRetilePreview(CWindow* pDraggedWindow) {
     pDraggedWindow->setDirty(true);
 }
 
-void CWindowManager::reorderMasterChild(CWindow* pWindow, int targetIndex) {
+void CWindowManager::reorderMasterChild(CWindow* pWindow) {
     if (pWindow->getMaster())
         return; // the master itself isn't part of the child list
+
+    const auto TARGETID = PendingDragRetileTarget;
+    PendingDragRetileTarget = 0;
 
     std::vector<CWindow*> children;
     for (auto& w : windows) {
@@ -1176,8 +1179,30 @@ void CWindowManager::reorderMasterChild(CWindow* pWindow, int targetIndex) {
         return a->getMasterChildIndex() < b->getMasterChildIndex();
     });
 
-    const int CLAMPEDTARGET = std::clamp(targetIndex, 0, (int)children.size());
-    children.insert(children.begin() + CLAMPEDTARGET, pWindow);
+    // Find the rank the drop target currently holds among the other
+    // children (by drawable, not by reusing its raw MasterChildIndex as
+    // if it were already a compact position - see this function's own
+    // header comment for why that doesn't work). Dropping directly on the
+    // master itself is a separate case - the master isn't in `children`
+    // at all, and the existing convention (see updateDragRetilePreview's
+    // own master-branch) is "become the new first child", not "append at
+    // the end". No valid target hovered at all (TARGETID == 0) is the
+    // only case that genuinely falls through to appending at the end.
+    int insertPos = (int)children.size();
+    if (TARGETID != 0) {
+        if (const auto PTARGETWINDOW = getWindowFromDrawable(TARGETID); PTARGETWINDOW && PTARGETWINDOW->getMaster()) {
+            insertPos = 0;
+        } else {
+            for (size_t i = 0; i < children.size(); ++i) {
+                if (children[i]->getDrawable() == TARGETID) {
+                    insertPos = (int)i;
+                    break;
+                }
+            }
+        }
+    }
+
+    children.insert(children.begin() + insertPos, pWindow);
 
     for (size_t i = 0; i < children.size(); ++i)
         children[i]->setMasterChildIndex((int)i);

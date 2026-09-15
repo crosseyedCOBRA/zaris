@@ -1011,6 +1011,13 @@ void Events::eventButtonRelease(xcb_generic_event_t* event) {
     // ungrab the mouse ptr
     xcb_ungrab_pointer(g_pWindowManager->DisplayConnection, XCB_CURRENT_TIME);
 
+    // Master layout's drop commit (reorderMasterChild(), called below via
+    // toggleActiveWindowFloating -> KeybindManager.cpp) needs to know which
+    // window was hovered at the moment of the drop, once it finally runs
+    // against the dragged window's rebuilt CWindow object - captured here,
+    // before clearDragRetilePreview() resets DragPreviewTargetID to 0.
+    g_pWindowManager->PendingDragRetileTarget = g_pWindowManager->DragPreviewTargetID;
+
     // Heal whichever window the live drag-retile preview last shrank,
     // unconditionally and before the real re-tile below - the real
     // insertion (toggleActiveWindowFloating -> remapWindow ->

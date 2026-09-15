@@ -49,17 +49,30 @@ public:
     // moving to a new target, not unconditionally.
     void                        clearDragRetilePreview();
 
+    // eventButtonRelease captures DragPreviewTargetID here just before
+    // calling clearDragRetilePreview() (which resets that to 0) - needed
+    // because toggleActiveWindowFloating's un-float path (KeybindManager.cpp)
+    // destroys and rebuilds the dragged window's whole CWindow object
+    // afterward, so reorderMasterChild() needs some way to still know
+    // which window was hovered at the moment of the drop, once it finally
+    // runs against the rebuilt object. 0 = no drop target (e.g. dropped
+    // somewhere with no valid hover target).
+    xcb_drawable_t              PendingDragRetileTarget = 0;
+
     // Master layout only: splices pWindow into the workspace's master
-    // child list at targetIndex (clamped to the list's bounds) and
-    // renumbers every sibling's MasterChildIndex sequentially, so the
-    // drop actually lands where the live drag preview showed it landing.
-    // Needed because toggleActiveWindowFloating's un-float path destroys
-    // and rebuilds the CWindow (see KeybindManager.cpp), which loses the
-    // MasterChildIndex the drag preview had set - remapWindow's own
-    // insertion always appends new/rebuilt windows at the end of the
-    // list instead, which is correct for a genuinely new window but
-    // silently discards a drag's intended drop position.
-    void                        reorderMasterChild(CWindow* pWindow, int targetIndex);
+    // child list at whatever rank PendingDragRetileTarget currently holds
+    // (found by matching drawable IDs among the *other* children, sorted
+    // by their real MasterChildIndex) and renumbers every sibling
+    // sequentially, so the drop actually lands where the live preview
+    // showed it landing. MasterChildIndex is deliberately NOT usable as a
+    // ready-made list position here - it's set at window-creation time to
+    // "total window count on the workspace minus 1" (so e.g. a workspace's
+    // first, second, third child end up 1, 2, 3, not 0, 1, 2, since the
+    // master itself counts toward that total) - so re-deriving the
+    // target's actual rank by drawable match, not reusing its raw stored
+    // index as a position, is what makes the splice land in the right
+    // slot instead of one off from it.
+    void                        reorderMasterChild(CWindow* pWindow);
 
     bool                        scratchpadActive = false;
 
