@@ -197,7 +197,14 @@ PopupWindow {
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.topMargin: 8
-            spacing: 8
+            // Was 8 - bumped once every remaining bare row got its own
+            // offset-background card (the status card, the weather card,
+            // the media card, the toggle-pill row), so sections read as
+            // genuinely separate blocks instead of sitting flush against
+            // each other - per explicit request ("a little padding
+            // between sections so they don't look so on top of each
+            // other").
+            spacing: 14
 
             Item {
                 width: root.contentWidth
@@ -393,8 +400,35 @@ PopupWindow {
             // color), not the bar's accent-colored textColor prop, so it
             // reads as regular themed Control Center text and follows a
             // palette change like everything else here.
-            Row {
+            // Combined "status" card - Running Kernel, the audio
+            // Output/Input sliders, and the brightness slider, all in one
+            // shared offset-background block instead of three separate
+            // bare rows sitting directly on the panel's own background -
+            // per explicit request ("each section should have an
+            // off-setting background... so they don't look so on top of
+            // each other"), matching the same Colors.pill treatment the
+            // toggle pills/media card already use elsewhere in this file.
+            // Each row keeps its own independent visible: binding
+            // (audio/brightness both already had one; Kernel is
+            // unconditional) - the Column below reflows automatically
+            // when one collapses, and this Rectangle's own height follows
+            // that reflow via statusColumn.implicitHeight, so a missing
+            // audio device or non-DDC monitor doesn't leave dead padding
+            // behind.
+            Rectangle {
                 width: root.contentWidth
+                height: statusColumn.implicitHeight + 24
+                radius: Style.radiusS
+                color: Colors.pill
+
+                Column {
+                    id: statusColumn
+                    anchors.centerIn: parent
+                    width: parent.width - 24
+                    spacing: 10
+
+            Row {
+                width: parent.width
                 spacing: 8
 
                 NText {
@@ -426,7 +460,7 @@ PopupWindow {
             // showInTray("volume") condition, leaving only the real
             // "do I have anything to show" check.
             Row {
-                width: root.contentWidth
+                width: parent.width
                 spacing: 14
                 visible: (!!root.pwSink && root.pwSink.ready) || (!!root.pwSource && root.pwSource.ready)
 
@@ -526,7 +560,7 @@ PopupWindow {
             }
 
             Row {
-                width: root.contentWidth
+                width: parent.width
                 spacing: 10
                 // Icon + slider on one row, no separate label line (unlike
                 // the volume rows above, which need one to show each
@@ -553,7 +587,8 @@ PopupWindow {
                     onMoved: BrightnessService.setBrightness(value)
                 }
             }
-
+                }
+            }
 
             // Restructured from one continuous 2-column grid of large
             // labeled tiles into two compact, icon-only pill groups side by
@@ -572,7 +607,7 @@ PopupWindow {
             // hidden exactly as before.
             Item {
                 width: root.contentWidth
-                height: Math.max(systemPill.height, connectivityPill.height)
+                height: Math.max(systemPill.height, connectivityPill.height, actionsPill.height)
 
                 Row {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -752,6 +787,61 @@ PopupWindow {
                             }
                         }
                     }
+
+                    // Actions - Wallpaper/Screenshot, folded in from their
+                    // old standalone "quick-launch grid" (two large labeled
+                    // tiles below the toggle pills) onto this same row, per
+                    // explicit request to keep them "on the same line with
+                    // power-profiles, network, etc." rather than reading as
+                    // a separate section. Plain NIconButtons, not the
+                    // Loader/Component pattern the toggle pills above use -
+                    // these are one-off actions with no on/off state to
+                    // reflect, no polymorphic toggle() needed.
+                    Rectangle {
+                        id: actionsPill
+                        width: actionsRow.implicitWidth + 16
+                        height: actionsRow.implicitHeight + 16
+                        radius: height / 2
+                        color: Colors.pill
+
+                        Row {
+                            id: actionsRow
+                            anchors.centerIn: parent
+                            spacing: 2
+
+                            NIconButton {
+                                baseSize: 34
+                                visible: ModulesConfig.showInTray("wallpaper", ControlCenterState.panel)
+                                tooltipText: "Wallpaper"
+                                colorBg: "transparent"
+                                colorBorder: "transparent"
+                                colorFg: Colors.textMuted
+                                colorFgHover: Colors.text
+                                colorBgHover: Colors.pillActive
+                                icon: ""
+                                onClicked: WallpaperPickerPanelState.visible = !WallpaperPickerPanelState.visible
+                            }
+
+                            NIconButton {
+                                baseSize: 34
+                                tooltipText: "Screenshot (right-click: full screen)"
+                                colorBg: "transparent"
+                                colorBorder: "transparent"
+                                colorFg: Colors.textMuted
+                                colorFgHover: Colors.text
+                                colorBgHover: Colors.pillActive
+                                icon: ""
+                                onClicked: {
+                                    const script = Quickshell.env("HOME") + "/.config/zaris/screenshot.sh"
+                                    Quickshell.execDetached([script, "region", DefaultsConfig.screenshotFolder])
+                                }
+                                onRightClicked: {
+                                    const script = Quickshell.env("HOME") + "/.config/zaris/screenshot.sh"
+                                    Quickshell.execDetached([script, "full", DefaultsConfig.screenshotFolder])
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -809,111 +899,6 @@ PopupWindow {
                 }
             }
 
-            Item {
-                width: root.contentWidth
-                height: quickLaunchGrid.implicitHeight
-
-                Grid {
-                    id: quickLaunchGrid
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    columns: 2
-                    spacing: 10
-
-                    Rectangle {
-                        width: root.tileWidth
-                        height: root.tileHeight
-                        radius: Style.radiusS
-                        color: wallpaperTileArea.containsMouse ? Colors.pillActive : Colors.pill
-                    visible: ModulesConfig.showInTray("wallpaper", ControlCenterState.panel)
-
-                    Behavior on color {
-                        ColorAnimation { duration: Style.animationFast }
-                    }
-
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 4
-
-                        NIcon {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            icon: ""
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXL
-                        }
-
-                        NText {
-                            text: "Wallpaper"
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXS
-                        }
-                    }
-
-                    MouseArea {
-                        id: wallpaperTileArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: WallpaperPickerPanelState.visible = !WallpaperPickerPanelState.visible
-                    }
-                }
-
-                Rectangle {
-                    width: root.tileWidth
-                    height: root.tileHeight
-                    radius: Style.radiusS
-                    color: screenshotTileArea.containsMouse ? Colors.pillActive : Colors.pill
-
-                    Behavior on color {
-                        ColorAnimation { duration: Style.animationFast }
-                    }
-
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 4
-
-                        NIcon {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            icon: ""
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXL
-                        }
-
-                        NText {
-                            text: "Screenshot"
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            color: Colors.textMuted
-                            pointSize: Style.fontSizeXS
-                        }
-                    }
-
-                    MouseArea {
-                        id: screenshotTileArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onClicked: mouse => {
-                            const script = Quickshell.env("HOME") + "/.config/zaris/screenshot.sh"
-                            const mode = mouse.button === Qt.LeftButton ? "region" : "full"
-                            Quickshell.execDetached([script, mode, DefaultsConfig.screenshotFolder])
-                        }
-                    }
-                }
-                }
-            }
-
-
-            Row {
-                width: root.contentWidth
-                spacing: 10
-                visible: ModulesConfig.showInTray("kernel", ControlCenterState.panel)
-
-                NText { text: "Kernel"; width: root.labelWidth; color: Colors.textMuted; pointSize: Style.fontSizeS }
-
-                KernelVersion {
-                    textColor: Colors.blue
-                }
-            }
-
             // Weather - the one piece of the reference screenshot deferred
             // out of the seventh Control Center pass specifically so it
             // wouldn't be bundled into an already-large media/audio change.
@@ -922,9 +907,23 @@ PopupWindow {
             // hide, and a location/weather API is opt-in by nature (simply
             // shows "Loading weather..." until the first fetch resolves,
             // never a silent failure). Now WeatherWidget.qml, shared with
-            // CalendarFlyout.qml's own weather row rather than duplicated.
-            WeatherWidget {
+            // CalendarFlyout.qml's own weather row rather than duplicated -
+            // the offset-background card here is applied at this call
+            // site, not inside WeatherWidget.qml itself, since that
+            // component is also embedded in CalendarFlyout.qml's own
+            // popup, which already has its own different background
+            // treatment and shouldn't inherit a card it never asked for.
+            Rectangle {
                 width: root.contentWidth
+                height: weatherWidget.implicitHeight + 24
+                radius: Style.radiusS
+                color: Colors.pill
+
+                WeatherWidget {
+                    id: weatherWidget
+                    anchors.centerIn: parent
+                    width: parent.width - 24
+                }
             }
 
             // Was a plain Row (media card, then whichever gauges column
