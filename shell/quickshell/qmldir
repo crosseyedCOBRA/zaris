@@ -38,6 +38,8 @@ singleton DockItemsService 1.0 DockItemsService.qml
 singleton PowerMenuPanelState 1.0 PowerMenuPanelState.qml
 singleton NetworkInterfacesService 1.0 NetworkInterfacesService.qml
 singleton DesktopWidgetsConfig 1.0 DesktopWidgetsConfig.qml
+singleton WifiNetworksService 1.0 WifiNetworksService.qml
+singleton NetworkPanelState 1.0 NetworkPanelState.qml
 LauncherContent 1.0 LauncherContent.qml
 Launcher 1.0 Launcher.qml
 BarClockText 1.0 BarClockText.qml
@@ -124,3 +126,5 @@ DockContent 1.0 DockContent.qml
 DockLauncherIcon 1.0 DockLauncherIcon.qml
 Dock 1.0 Dock.qml
 PinDialog 1.0 PinDialog.qml
+NetworkPanelIcon 1.0 NetworkPanelIcon.qml
+NetworkPanel 1.0 NetworkPanel.qml

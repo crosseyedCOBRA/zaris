@@ -84,6 +84,7 @@ Row {
                     case "vpn": return vpnComponent
                     case "privacy": return privacyComponent
                     case "audioVisualizer": return audioVisualizerComponent
+                    case "networkPanel": return networkPanelComponent
                     default: return null
                     }
                 }
@@ -339,6 +340,14 @@ Row {
             activeColor: Colors.blue
             settingsShortcut: true
             barSurfaceItem: root.barSurfaceItem
+        }
+    }
+
+    Component {
+        id: networkPanelComponent
+        NetworkPanelIcon {
+            textColor: Colors.textMuted
+            activeColor: Colors.blue
         }
     }
 }

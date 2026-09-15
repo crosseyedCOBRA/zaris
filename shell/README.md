@@ -71,6 +71,7 @@ See [../DEPENDENCIES.md](../DEPENDENCIES.md) for exact package names
 - **xss-lock** + **i3lock** — idle-based screen lock. Both chosen specifically for being packaged natively on Arch, Debian, and Fedora alike (this project's earlier choices, `xautolock` and `betterlockscreen`/`i3lock-color`, weren't packaged on Debian at all) — see `DEPENDENCIES.md`. Plain `i3lock` has no blur/theming built in, a deliberate portability tradeoff.
 - **xwallpaper** — sets the default wallpaper image (`zaris.conf`'s `exec-once=xwallpaper --zoom ~/Pictures/...`). Optionally **xsetroot** instead (usually part of `xorg-xsetroot` / `x11-apps`), if you'd rather have a plain solid color than an image
 - A **Nerd Font** (JetBrainsMono Nerd Font in the reference config) — the bar's icons are glyphs from it, and it's also set as dunst's font
+- **NetworkManager** (`nmcli`) — a pre-existing gap in this list, just never logged until the Network flyout pass (`NetworkPanel.qml`/`WifiNetworksService.qml`) made the dependency obvious enough to notice: every network-related bar module and the Network flyout itself (status/toggle icons, the VPN toggle, the wifi scan/connect list, the ethernet device list) go entirely through `nmcli`, with `NetworkManager.service` actually running and managing the machine's interfaces
 - An icon theme (Papirus-Dark in the reference `dunstrc`) — for notification icons
 - `loginctl` (systemd-logind, or **elogind** on a non-systemd system) — the power menu's suspend/reboot/shutdown actions
 

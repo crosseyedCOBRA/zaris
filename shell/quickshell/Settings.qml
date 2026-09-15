@@ -325,7 +325,8 @@ PopupWindow {
         vpn: "VPN",
         privacy: "Privacy (mic/camera in use)",
         audioVisualizer: "Audio visualizer",
-        clock: "Clock"
+        clock: "Clock",
+        networkPanel: "Network (Wi-Fi/Ethernet panel)"
     })
 
     // Control Center tab's own chip labels - a few of these read

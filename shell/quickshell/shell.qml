@@ -34,4 +34,5 @@ ShellRoot {
     IconPickerPanel {}
     FolderPickerPanel {}
     PowerMenuPanel {}
+    NetworkPanel {}
 }

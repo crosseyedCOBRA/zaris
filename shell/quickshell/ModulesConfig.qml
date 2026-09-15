@@ -48,7 +48,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy", "audioVisualizer", "clock"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "networkPanel", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy", "audioVisualizer", "clock"]
 
     // The subset Settings' new "Bar Modules" tab lets you add/reorder -
     // every id above except mediaPlayer, which has no bar-side rendering
@@ -200,6 +200,12 @@ QtObject {
             // capture processes, not just N redundant cheap polls like
             // every other module here.
             property var audioVisualizer: ({ enabled: false, screens: "primary", tray: false })
+            // Off by default - additive to the existing standalone
+            // network/wifi toggle icons (see NetworkPanelIcon.qml's own
+            // header comment), not a replacement for them, so it doesn't
+            // start out doubling up on bar space with those two by
+            // default.
+            property var networkPanel: ({ enabled: false, screens: "all", tray: false })
 
             // Control Center's vertical gauge stack (CPU load/CPU temp/
             // GPU temp/RAM) - deliberately NOT the same enabled/screens/
