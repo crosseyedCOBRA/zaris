@@ -80,6 +80,7 @@ Row {
                     case "wifi": return wifiComponent
                     case "volume": return volumeComponent
                     case "colorPicker": return colorPickerComponent
+                    case "vpn": return vpnComponent
                     default: return null
                     }
                 }
@@ -98,6 +99,14 @@ Row {
         id: colorPickerComponent
         ColorPicker {
             textColor: Colors.coral
+        }
+    }
+
+    Component {
+        id: vpnComponent
+        VpnToggle {
+            textColor: Colors.textMuted
+            activeColor: Colors.teal
         }
     }
 

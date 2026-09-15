@@ -321,7 +321,8 @@ PopupWindow {
         brightness: "Brightness",
         taskbar: "Taskbar (running apps)",
         controlCenter: "Control Center",
-        colorPicker: "Color picker"
+        colorPicker: "Color picker",
+        vpn: "VPN"
     })
 
     // Control Center tab's own chip labels - a few of these read
