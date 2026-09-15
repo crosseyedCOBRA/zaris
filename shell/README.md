@@ -17,7 +17,7 @@ eventually customize this rather than requiring hand-edits.
 | Directory              | Installs to             | What it is |
 |-------------------------|--------------------------|------------|
 | `quickshell/`           | `~/.config/quickshell/`  | The bar, launcher, OSD, settings window, and their shared state/config (QML + `modules.json`) |
-| `zaris/`                | `~/.config/zaris/`       | `zaris.conf` (the WM config paired with this shell), the session launch script, and helper scripts (power menu, screenshot, volume OSD) |
+| `zaris/`                | `~/.config/zaris/`       | `zaris.conf` (the WM config paired with this shell), `picom.conf` (recommended compositor), the session launch script, and helper scripts (power menu, screenshot, volume OSD) |
 | `dunst/`                | `~/.config/dunst/`       | Notification daemon config, themed to match the shell's palette |
 | `rofi/`                 | `~/.config/rofi/`        | Theme used by the power menu's `rofi -dmenu` prompt |
 
@@ -54,6 +54,7 @@ See [../DEPENDENCIES.md](../DEPENDENCIES.md) for exact package names
 (Arch/pacman verified so far). Beyond what the WM itself needs to build:
 
 - **quickshell** (`qs`) — the shell runtime itself
+- **picom** — the recommended compositor. Zaris itself does no compositing (see `ROADMAP.md`), so without this — or another compositor started some other way — windows still render correctly, but with no real alpha blending (the Bar/Control Center/Settings' translucent panels render fully opaque), no anti-aliased rounded corners, no shadows, and no background blur. `zaris.conf` already has `exec-once=picom --config ~/.config/zaris/picom.conf`; see that file for the starter config.
 - **pipewire**, **pipewire-pulse**, **wireplumber** (includes `wpctl`) — audio + the volume OSD
 - **dunst** — notification daemon
 - **rofi** — the power menu's picker

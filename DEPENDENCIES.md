@@ -65,6 +65,7 @@ itself.
 | Purpose | Arch/pacman | Debian/apt | Fedora/dnf |
 |---|---|---|---|
 | The shell runtime itself | `quickshell` (official, `extra`) | **Not packaged**, but buildable from source with apt-only deps — see "Building Quickshell from source" below | `quickshell` — official, but currently a git-snapshot build (`0.2.1^git...`), not a tagged release; worth a version sanity-check before relying on it |
+| Compositor (real alpha blending, rounded-corner AA, shadows, blur) | `picom` | `picom` | `picom` — official on all three; Zaris itself does no compositing (see ROADMAP.md), `zaris.conf` execs it with `shell/zaris/picom.conf` |
 | Audio stack + `wpctl` for the volume OSD | `pipewire`, `pipewire-pulse`, `wireplumber` | `pipewire`, `pipewire-pulse`, `wireplumber` | `pipewire`, `pipewire-pulseaudio` (different name — no `-pulse` suffix), `wireplumber` |
 | Notification daemon | `dunst` | `dunst` | `dunst` |
 | Power menu's picker | `rofi` | `rofi` | `rofi` |

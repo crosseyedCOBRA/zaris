@@ -18,16 +18,6 @@
 #include "utilities/XCBProps.hpp"
 #include "ewmh/ewmh.hpp"
 
-// Milestone 2: everything a specific X visual needs to bind one of its
-// windows' redirected pixmaps as a GL texture via GLX_EXT_texture_from_pixmap.
-// Resolved once per visual (see CWindowManager::GLFBConfigsByVisual) rather
-// than re-queried every window every frame.
-struct SGLTexFromPixmapConfig {
-    GLXFBConfig fbconfig      = nullptr;
-    int         textureFormat = GLX_TEXTURE_FORMAT_RGBA_EXT;
-    bool        yInverted     = false;
-};
-
 class CWindowManager {
 public:
     xcb_connection_t*           DisplayConnection = nullptr;
@@ -35,156 +25,6 @@ public:
     xcb_drawable_t              Drawable;
     int                         RandREventBase = -1;
     uint32_t                    Values[3];
-
-    // Compositor (see ROADMAP.md's "Bundled compositor" entry for the full
-    // plan) - off by default (config's own "enable_compositor", 0 unless a
-    // user opts in) and only ever set true once `xcb_composite_
-    // redirect_subwindows` has actually succeeded, so every other piece of
-    // compositor-only code below can gate itself on this one flag rather
-    // than re-checking config/extension presence every time. DamageEventBase
-    // works exactly like RandREventBase above - a runtime-determined offset
-    // needed to recognize the Damage extension's own notify events, since
-    // extension event codes aren't compile-time constants.
-    int                         DamageEventBase = -1;
-    bool                        CompositingEnabled = false;
-
-    // Milestone 6: skips the entire repaint (XRender or GL, whichever
-    // path is active) on any tick where nothing plausibly changed, rather
-    // than redrawing the whole screen unconditionally 60 times a second
-    // regardless of whether the desktop is actually idle - see
-    // compositorRepaint()'s own comment for the full reasoning and the
-    // separate always-repaint-while-animating check it also needs.
-    // Starts true so the very first tick after the compositor comes up
-    // always draws at least one real frame.
-    bool                        CompositorDirty = true;
-
-    // Milestone 1b: the root window's own Picture (the XRender destination
-    // every window gets composited onto) plus the PictFormat matching the
-    // root visual, needed to create it. Both are set up once, right after
-    // the redirect succeeds, and stay valid for the process's lifetime -
-    // the root window itself is never destroyed/recreated.
-    xcb_render_pictformat_t     RootPictFormat = 0;
-    xcb_render_picture_t        RootPicture = 0;
-
-    // Milestone 2: GL passthrough via GLX_EXT_texture_from_pixmap, layered
-    // on top of milestone 1b rather than replacing it - if any part of GL
-    // setup fails, GLReady simply stays false and compositorRepaint() keeps
-    // using the already-proven XRender path above instead, so a GL problem
-    // (a missing driver feature, a different GPU vendor, etc.) degrades
-    // gracefully rather than breaking compositing outright. GLDisplay is a
-    // second, independent Xlib connection to the same X server dedicated
-    // purely to GL/GLX calls - Xlib's GLX API needs a Display*, and this
-    // way it can never interfere with DisplayConnection (the xcb_connection_t
-    // every other WM responsibility already runs on).
-    Display*                    GLDisplay = nullptr;
-    GLXContext                  GLContext = nullptr;
-    GLXWindow                   GLWindow  = 0;
-    bool                        GLReady   = false;
-
-    // Built once at setup by enumerating every advertised GLXFBConfig and
-    // keeping the ones usable for texture-from-pixmap, keyed by the X
-    // visual they match - mirrors the existing FORMATS-by-visual-id cache
-    // the XRender path above already uses for the exact same reason (each
-    // client window may use a different visual than the WM's own).
-    std::unordered_map<xcb_visualid_t, SGLTexFromPixmapConfig> GLFBConfigsByVisual;
-
-    PFNGLXBINDTEXIMAGEEXTPROC    glXBindTexImageEXTFn    = nullptr;
-    PFNGLXRELEASETEXIMAGEEXTPROC glXReleaseTexImageEXTFn = nullptr;
-
-    // GLSL 2.0 entry points, resolved the same way as the two GLX ones
-    // just above and for the same reason - this system's GL/gl.h only
-    // statically declares up to roughly GL 1.2/1.4, nothing from the
-    // shader API milestone 3 needs.
-    PFNGLCREATESHADERPROC       glCreateShaderFn       = nullptr;
-    PFNGLSHADERSOURCEPROC       glShaderSourceFn       = nullptr;
-    PFNGLCOMPILESHADERPROC      glCompileShaderFn      = nullptr;
-    PFNGLGETSHADERIVPROC        glGetShaderivFn        = nullptr;
-    PFNGLGETSHADERINFOLOGPROC   glGetShaderInfoLogFn   = nullptr;
-    PFNGLDELETESHADERPROC       glDeleteShaderFn       = nullptr;
-    PFNGLCREATEPROGRAMPROC      glCreateProgramFn      = nullptr;
-    PFNGLATTACHSHADERPROC       glAttachShaderFn       = nullptr;
-    PFNGLLINKPROGRAMPROC        glLinkProgramFn        = nullptr;
-    PFNGLGETPROGRAMIVPROC       glGetProgramivFn       = nullptr;
-    PFNGLGETPROGRAMINFOLOGPROC  glGetProgramInfoLogFn  = nullptr;
-    PFNGLDELETEPROGRAMPROC      glDeleteProgramFn      = nullptr;
-    PFNGLUSEPROGRAMPROC         glUseProgramFn         = nullptr;
-    PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocationFn = nullptr;
-    PFNGLUNIFORM1IPROC          glUniform1iFn          = nullptr;
-    PFNGLUNIFORM1FPROC          glUniform1fFn          = nullptr;
-    PFNGLUNIFORM2FPROC          glUniform2fFn          = nullptr;
-    PFNGLUNIFORM4FPROC          glUniform4fFn          = nullptr;
-
-    // Milestone 5: FBO entry points, for the dual-kawase background-blur
-    // render-to-texture chain - same "not statically declared, resolve
-    // manually" story as every other GLSL-2.0-era function above.
-    PFNGLGENFRAMEBUFFERSPROC        glGenFramebuffersFn        = nullptr;
-    PFNGLBINDFRAMEBUFFERPROC        glBindFramebufferFn        = nullptr;
-    PFNGLFRAMEBUFFERTEXTURE2DPROC   glFramebufferTexture2DFn   = nullptr;
-    PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatusFn = nullptr;
-    PFNGLDELETEFRAMEBUFFERSPROC     glDeleteFramebuffersFn     = nullptr;
-
-    // Milestone 3: replaces the old plain textured-quad draw with a small
-    // GLSL program doing an anti-aliased rounded-rect test (a signed-
-    // distance-function test against each fragment's position within the
-    // window, see compositorSetupGL()'s own comment for why this is an
-    // original implementation of a standard technique, not ported from
-    // anywhere) - 0 (and GLReady never set) if compiling/linking it fails.
-    GLuint                       GLShaderProgram    = 0;
-    GLint                        GLUniformTex       = -1;
-    GLint                        GLUniformWinSize   = -1;
-    GLint                        GLUniformRadius    = -1;
-
-    // Milestone 4: a second program, sharing the same vertex shader (see
-    // compositorSetupGL()) but with its own fragment shader - draws a
-    // soft-edged rounded rect with no texture sampling at all, used as
-    // each window's drop shadow. Reuses the exact same rounded-box SDF
-    // formula as the window shader above, just with a much wider
-    // smoothstep band (`blur`) standing in for a real Gaussian falloff -
-    // cheap, analytic, and good enough for a shadow's soft edge without
-    // needing an actual multi-pass blur (that's milestone 5's job, for
-    // background blur specifically, where a flat analytic falloff
-    // wouldn't be a substitute for the real thing).
-    GLuint                       GLShadowShaderProgram  = 0;
-    GLint                        GLShadowUniformWinSize = -1;
-    GLint                        GLShadowUniformRadius  = -1;
-    GLint                        GLShadowUniformBlur    = -1;
-    GLint                        GLShadowUniformColor   = -1;
-
-    // Milestone 5: dual-kawase background blur, applied behind every
-    // window this compositor already tracks as always-on-top (see
-    // `alwaysOnTopWindows` below) - deliberately the same window set, not
-    // a narrower one, for the identical reason that mechanism's own
-    // comment already gives: X11 offers no reliable way to distinguish
-    // specifically Settings/Control Center from Quickshell's other
-    // override-redirect popups (the calendar flyout, tooltips, the Bar
-    // itself), so guessing a narrower heuristic here would be no more
-    // justified than it would have been for always-on-top tracking.
-    // GLBlurDownsampleProgram/GLBlurUpsampleProgram share the exact same
-    // vertex shader as the window/shadow programs above (vLocalPos just
-    // goes unused) - two more programs would be needless duplication for
-    // what's ultimately identical vertex-stage plumbing.
-    GLuint GLBlurDownsampleProgram      = 0;
-    GLint  GLBlurDownsampleUniformTex   = -1;
-    GLint  GLBlurDownsampleUniformHalf  = -1;
-    GLuint GLBlurUpsampleProgram        = 0;
-    GLint  GLBlurUpsampleUniformTex     = -1;
-    GLint  GLBlurUpsampleUniformHalf    = -1;
-
-    // A one-time snapshot of the root window's own pre-compositor pixel
-    // content (the wallpaper, drawn there by whatever wallpaper tool
-    // before compositing ever starts), redrawn as the base layer every
-    // frame before any window quads. Needed because milestone 3's rounded
-    // corners are genuinely partially-transparent at the edges (unlike
-    // milestones 1b/2, which only ever drew fully-opaque rectangles) - so
-    // simply never clearing the framebuffer (milestone 1b/2's own
-    // approach, relying on the root's own already-correct pixels staying
-    // untouched wherever nothing draws over them) would leave a visible
-    // "ghost" of a window's previous rounded-corner position behind after
-    // it moves, since nothing would ever repaint over that sliver again.
-    // Known limitation: captured once, so a *later* live wallpaper change
-    // won't be reflected without restarting the compositor - not handled
-    // this pass, see ROADMAP.md.
-    GLuint                       GLBackgroundTexture = 0;
 
     // holds the objects of all active monitors.
     std::vector<SMonitor>       monitors;
@@ -253,34 +93,6 @@ public:
     bool                        handleEvent();
     void                        recieveEvent();
     void                        refreshDirtyWindows();
-
-    // Milestone 1b/2: repaints the whole screen by compositing every mapped
-    // top-level window's redirected pixmap back onto the screen, in real
-    // X11 stacking order. No-op unless CompositingEnabled. Called once per
-    // tick from the existing GLib tick thread (see Events::handle()). Picks
-    // the GL path when milestone 2's setup succeeded (GLReady), else falls
-    // back to milestone 1b's plain XRender path - both are kept, not just
-    // the newer one, precisely so a GL-specific failure on some other
-    // machine/GPU degrades to "no shader effects yet" rather than "no
-    // compositing at all."
-    void                        compositorRepaint();
-    void                        compositorRepaintXRender();
-    void                        compositorRepaintGL();
-
-    // Milestone 5: captures whatever's already been drawn to the screen
-    // within (x,y,w,h) so far this frame, runs it through the dual-kawase
-    // blur chain, and draws the blurred result back at the same rect
-    // (rounded to match, via the same shader/radius a window's own
-    // content uses) - called from compositorRepaintGL() right before a
-    // blur-behind window's own content, so the window's own (partially
-    // transparent) pixels then blend against a freshly blurred backdrop
-    // instead of whatever was directly beneath it.
-    void                        compositorDrawBlurBehind(float x, float y, float w, float h, float radius, int screenW, int screenH);
-
-    // Milestone 2: one-time GLX/GL setup, called from setupManager() right
-    // after milestone 1b's own RootPicture setup succeeds. Leaves GLReady
-    // false (see above) on any failure along the way.
-    void                        compositorSetupGL();
 
     void                        setFocusedWindow(xcb_drawable_t, bool userInitiated = false);
     void                        refocusWindowOnClosed();

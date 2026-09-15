@@ -16,29 +16,6 @@
 #include <xcb/xcb_util.h>
 #include <xcb/xcb_cursor.h>
 #include <xcb/shape.h>
-#include <xcb/composite.h>
-#include <xcb/damage.h>
-#include <xcb/render.h>
-#include <xcb/xcb_renderutil.h>
-
-// GLX/GL for milestone 2 of the bundled compositor (see ROADMAP.md) - the
-// only place Xlib appears anywhere in this otherwise pure-XCB codebase,
-// since glXBindTexImageEXT/glXCreatePixmap and friends are Xlib-only API
-// with no complete xcb-glx equivalent. Kept to a dedicated, separate Xlib
-// connection (CWindowManager::GLDisplay) purely for GL/GLX calls - the
-// existing xcb_connection_t remains the only connection used for every
-// other WM responsibility, so this never risks interfering with the main
-// event loop.
-#include <GL/glx.h>
-#include <GL/glxext.h>
-// This system's GL/gl.h only statically declares up to roughly GL 1.2/1.4 -
-// every GLSL 2.0 shader entry point (glCreateShader, glUseProgram, etc.,
-// used by milestone 3's rounded-corner shader) needs its own function
-// pointer, resolved once via glXGetProcAddressARB at compositor setup time
-// - glext.h supplies the PFNGL*PROC typedefs and GL_*_SHADER/GL_*_STATUS
-// constants for that, the same way glxext.h already did for
-// glXBindTexImageEXT/glXReleaseTexImageEXT.
-#include <GL/glext.h>
 
 #include <glib-2.0/glib.h>
 

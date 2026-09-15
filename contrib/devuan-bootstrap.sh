@@ -188,13 +188,16 @@ step_shell() {
     # Runtime deps available in Debian/Devuan repos (shell/README.md's
     # full list). Not here: quickshell itself (see the `quickshell` step,
     # which builds it from source) and the Nerd Font (see `nerdfont`,
-    # which pulls it straight from upstream).
+    # which pulls it straight from upstream). picom is the recommended
+    # compositor - Zaris itself doesn't composite (see ROADMAP.md) -
+    # zaris.conf already execs it with the shipped ~/.config/zaris/picom.conf.
     #
     # zaris.conf's idle-lock now runs on xss-lock + i3lock rather than
     # this project's earlier xautolock + betterlockscreen — neither of
     # those old choices were packaged for Debian at all, xss-lock and
     # i3lock both are.
     sudo apt-get -y install \
+        picom \
         pipewire pipewire-pulse wireplumber \
         dunst rofi maim xclip i3lock xss-lock \
         x11-xserver-utils papirus-icon-theme fontconfig
