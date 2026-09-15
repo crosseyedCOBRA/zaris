@@ -17,7 +17,7 @@ import Quickshell
 // flyout/the taskbar launcher already got. Centered under the bell icon
 // itself (anchor.rect.x, same as CalendarFlyout centers under the clock)
 // rather than left-aligned under it (the taskbar launcher's own choice,
-// for a start-menu-style trigger) - this is a small inline tray icon
+// for a start-menu-style trigger) - this is a small inline bar icon
 // opening a much wider panel, not a dedicated launcher button.
 PopupWindow {
     id: panel

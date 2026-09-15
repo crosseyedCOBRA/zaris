@@ -123,7 +123,7 @@ QtObject {
     // "primary" matches Quickshell.screens[0], an array matches by exact
     // RandR output name, "all" (or anything else unrecognized) matches
     // everything. Dock.qml calls this per-monitor-instance, same pattern
-    // as Bar.qml's own per-module `showInBar`/`showInTray` checks.
+    // as Bar.qml's own per-module `showInBar`/`showInControlCenter` checks.
     function screenMatches(screen) {
         const s = configFile.adapter.screens
         if (s === undefined || s === "all")

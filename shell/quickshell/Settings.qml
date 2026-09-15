@@ -171,8 +171,8 @@ PopupWindow {
     property bool chipDragActive: false
     property string chipDragId: ""
     property string chipDragLabel: ""
-    // "left"/"center"/"right" for the Bar Modules tab, "tray" for Control
-    // Center - which reorder function endChipDrag() should call.
+    // "left"/"center"/"right" for the Bar Modules tab, "controlCenter" for
+    // Control Center - which reorder function endChipDrag() should call.
     property string chipDragOrigin: ""
     property real chipDragX: 0
     property real chipDragY: 0
@@ -231,7 +231,7 @@ PopupWindow {
 
     // Called on release - hit-tests the drop point against whichever
     // tab's drop zones are actually visible right now (bar_left/
-    // bar_center/bar_right/tray - the zone ids referenced here are
+    // bar_center/bar_right/controlCenter - the zone ids referenced here are
     // declared further down this same file, inside each tab's own
     // content Column; a plain JS function like this one only resolves
     // them at call time, once the whole window is already built, so the
@@ -244,13 +244,13 @@ PopupWindow {
         if (id === "")
             return
 
-        if (origin === "tray") {
-            if (!settingsWindow.pointInZone(trayZone, windowX, windowY))
+        if (origin === "controlCenter") {
+            if (!settingsWindow.pointInZone(controlCenterZone, windowX, windowY))
                 return
-            const ids = ModulesConfig.trayModulesForSettings().filter(function (i) { return i !== id })
-            const idx = settingsWindow.computeInsertIndex(trayFlow, id, windowX, windowY)
+            const ids = ModulesConfig.controlCenterModulesForSettings().filter(function (i) { return i !== id })
+            const idx = settingsWindow.computeInsertIndex(controlCenterFlow, id, windowX, windowY)
             ids.splice(idx, 0, id)
-            ModulesConfig.reorderTrayModules(ids)
+            ModulesConfig.reorderControlCenterModules(ids)
             return
         }
 
@@ -1366,7 +1366,7 @@ PopupWindow {
                         }
 
                         // ==================== Bar ====================
-                        // Per-module Enabled/Screens/In-tray table moved out
+                        // Per-module Enabled/Screens/In-Control-Center table moved out
                         // to its own "Modules" tab below - keeping it here
                         // alongside opacity/height made this one tab by far
                         // the tallest in the whole window, which mattered
@@ -1544,7 +1544,7 @@ PopupWindow {
 
                         // ==================== Bar Modules ====================
                         // Drag-and-drop chip UI, replacing the old flat
-                        // enable/screens/tray table for the bar-shown half
+                        // enable/screens/inControlCenter table for the bar-shown half
                         // of ModulesConfig - see Settings' own
                         // chipDrag*/ModuleChip.qml/ModulesConfig.qml
                         // comments for the full mechanism. Per-monitor
@@ -1730,32 +1730,32 @@ PopupWindow {
                             }
 
                             Rectangle {
-                                id: trayZone
+                                id: controlCenterZone
                                 width: parent.width
-                                height: Math.max(50, trayFlow.implicitHeight + 16)
+                                height: Math.max(50, controlCenterFlow.implicitHeight + 16)
                                 radius: Style.radiusS
                                 color: Colors.pill
                                 border.width: 2
-                                border.color: settingsWindow.chipDragActive && settingsWindow.pointInZone(trayZone, settingsWindow.chipDragX, settingsWindow.chipDragY) ? Colors.mPrimary : "transparent"
+                                border.color: settingsWindow.chipDragActive && settingsWindow.pointInZone(controlCenterZone, settingsWindow.chipDragX, settingsWindow.chipDragY) ? Colors.mPrimary : "transparent"
 
                                 Flow {
-                                    id: trayFlow
+                                    id: controlCenterFlow
                                     anchors.fill: parent
                                     anchors.margins: 8
                                     spacing: 6
 
                                     Repeater {
-                                        model: ModulesConfig.trayModulesForSettings()
+                                        model: ModulesConfig.controlCenterModulesForSettings()
 
                                         ModuleChip {
                                             required property string modelData
                                             moduleId: modelData
                                             label: settingsWindow.ccModuleNames[modelData] || settingsWindow.moduleNames[modelData] || modelData
                                             dimmed: settingsWindow.chipDragActive && settingsWindow.chipDragId === modelData
-                                            onChipPressed: (wx, wy) => settingsWindow.startChipDrag(modelData, label, "tray", wx, wy, width, height)
+                                            onChipPressed: (wx, wy) => settingsWindow.startChipDrag(modelData, label, "controlCenter", wx, wy, width, height)
                                             onChipPositionChanged: (wx, wy) => settingsWindow.updateChipDrag(wx, wy)
                                             onChipReleased: (wx, wy) => settingsWindow.endChipDrag(wx, wy)
-                                            onRemoveClicked: ModulesConfig.removeFromTray(modelData)
+                                            onRemoveClicked: ModulesConfig.removeFromControlCenter(modelData)
                                         }
                                     }
                                 }
@@ -1765,8 +1765,8 @@ PopupWindow {
                                 width: 260
                                 placeholder: "Add a module..."
                                 currentKey: ""
-                                model: ModulesConfig.trayModulesAvailableToAdd().map(function (id) { return { key: id, name: settingsWindow.ccModuleNames[id] || settingsWindow.moduleNames[id] || id } })
-                                onSelected: key => ModulesConfig.addToTray(key)
+                                model: ModulesConfig.controlCenterModulesAvailableToAdd().map(function (id) { return { key: id, name: settingsWindow.ccModuleNames[id] || settingsWindow.moduleNames[id] || id } })
+                                onSelected: key => ModulesConfig.addToControlCenter(key)
                             }
 
                             NText {

@@ -5,7 +5,7 @@ import QtQuick
 // when there's no present battery device at all (this desktop's own
 // internal power has none - see BatteryService.qml's header comment on
 // what UPower device this was verified against), same "vanish rather than
-// show empty" convention as MediaWidget.qml/NightLight.qml's tray label.
+// show empty" convention as MediaWidget.qml/NightLight.qml's own label.
 Item {
     id: root
 

@@ -3,7 +3,7 @@ import QtQuick
 
 // Shared open/closed state for the Control Center flyout (ControlCenter.qml),
 // plus which monitor's chevron opened it - so the panel shows only the
-// tray modules configured for that specific screen.
+// Control-Center-shown modules configured for that specific screen.
 //
 // `barItem` is the bar's own full-width background Rectangle (Bar.qml's
 // barSurface) on whichever monitor was clicked - set alongside `panel` at

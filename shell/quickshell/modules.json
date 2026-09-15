@@ -2,36 +2,36 @@
     "cpu": {
         "enabled": true,
         "screens": "all",
-        "tray": true
+        "inControlCenter": true
     },
     "cpuTemp": {
         "enabled": true,
         "screens": "all",
-        "tray": true
+        "inControlCenter": true
     },
     "gpuTemp": {
         "enabled": true,
         "screens": "all",
-        "tray": true
+        "inControlCenter": true
     },
     "kernel": {
         "enabled": false,
         "screens": "primary",
-        "tray": false
+        "inControlCenter": false
     },
     "network": {
         "enabled": true,
         "screens": "primary",
-        "tray": true
+        "inControlCenter": true
     },
     "stayAwake": {
         "enabled": true,
         "screens": "all",
-        "tray": false
+        "inControlCenter": false
     },
     "volume": {
         "enabled": true,
         "screens": "all",
-        "tray": false
+        "inControlCenter": false
     }
 }

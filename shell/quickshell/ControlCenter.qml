@@ -3,8 +3,8 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Services.Pipewire
 
-// Phase 3 of the Noctalia-port effort (see ROADMAP.md): the "hidden tray"
-// flyout, rebuilt as a single-column Control Center - header actions,
+// Phase 3 of the Noctalia-port effort (see ROADMAP.md): the old flat
+// "hidden overflow" flyout, rebuilt as a single-column Control Center - header actions,
 // quick-toggle grid, quick-launch actions, volume, kernel/network status,
 // then a media card paired with a small cluster of circular system-stat
 // gauges (CPU load, CPU/GPU temp, battery). Not a port of Noctalia v5's own
@@ -56,14 +56,16 @@ import Quickshell.Services.Pipewire
 // from being bare always-visible Bar.qml icons (a fixed header, visible
 // at the top of the column); Clipboard, Wallpaper, and Screenshot got a
 // quick-launch icon row (opening the same existing panels/script their old
-// bar icons did). Clipboard/Wallpaper/Battery/Dnd's `modules.json` `tray`
-// default flipped to `true` at the same time (ModulesConfig.qml), so they
-// stop appearing inline in the bar automatically - no Bar.qml changes
-// needed for those four, the existing tray mechanism already covers it.
+// bar icons did). Clipboard/Wallpaper/Battery/Dnd's `modules.json`
+// `inControlCenter` (named `tray` at the time) default flipped to `true`
+// at the same time (ModulesConfig.qml), so they stop appearing inline in
+// the bar automatically - no Bar.qml changes needed for those four, the
+// existing showInControlCenter() mechanism already covers it.
 //
-// Same "tray": true opt-in from modules.json still gates every module here,
-// exactly as it did in the old flat Overflow.qml - this is a presentation
-// change, not a new config surface. Live state (StayAwake, NightLight, Dnd,
+// Same "inControlCenter": true opt-in from modules.json still gates
+// every module here, exactly as its predecessor did in the old flat
+// Overflow.qml - this is a presentation change, not a new config
+// surface. Live state (StayAwake, NightLight, Dnd,
 // Bluetooth, volume, media) is read from the same shared singletons/
 // services the bar's inline modules use, so toggling from here stays in
 // sync with the bar.
@@ -387,7 +389,7 @@ PopupWindow {
             }
 
             // Running kernel version - its own small, always-visible
-            // section (not gated by ModulesConfig's enable/tray system the
+            // section (not gated by ModulesConfig's enable/inControlCenter system the
             // way the bar's own copy of this module is) since the kernel
             // module's bar default flipped to disabled - the user still
             // wanted it visible somewhere by default, just not taking up
@@ -448,16 +450,16 @@ PopupWindow {
             // reference Control Center (which always shows full Output/
             // Input device sliders, alongside a separate, independent
             // compact volume icon in its own bar): this row used to also
-            // require ModulesConfig.showInTray("volume", ...), tying it to
-            // whether the *bar's* own volume icon was configured as a tray
-            // module - "volume"'s own default is a bar icon
-            // (tray: false, see ModulesConfig.qml), so on an unmodified
+            // require ModulesConfig.showInControlCenter("volume", ...), tying it to
+            // whether the *bar's* own volume icon was configured as a
+            // Control-Center-shown module - "volume"'s own default is a bar icon
+            // (inControlCenter: false, see ModulesConfig.qml), so on an unmodified
             // install this whole audio section silently never rendered at
             // all, regardless of whether real, ready sink/source devices
             // existed. Audio control belongs in Control Center as its own
             // first-class section, not gated behind a setting that governs
             // a completely different location's icon - removed the
-            // showInTray("volume") condition, leaving only the real
+            // showInControlCenter("volume") condition, leaving only the real
             // "do I have anything to show" check.
             Row {
                 width: parent.width
@@ -677,7 +679,7 @@ PopupWindow {
                             }
 
                             Repeater {
-                                model: ModulesConfig.orderedTrayModules(ControlCenterState.panel).filter(function (id) { return id === "stayAwake" || id === "nightLight" })
+                                model: ModulesConfig.orderedControlCenterModules(ControlCenterState.panel).filter(function (id) { return id === "stayAwake" || id === "nightLight" })
 
                                 Item {
                                     id: systemTileDelegate
@@ -736,7 +738,7 @@ PopupWindow {
                             spacing: 2
 
                             Repeater {
-                                model: ModulesConfig.orderedTrayModules(ControlCenterState.panel).filter(function (id) { return id === "network" || id === "wifi" || id === "clipboard" || id === "bluetooth" })
+                                model: ModulesConfig.orderedControlCenterModules(ControlCenterState.panel).filter(function (id) { return id === "network" || id === "wifi" || id === "clipboard" || id === "bluetooth" })
 
                                 Item {
                                     id: connTileDelegate
@@ -811,7 +813,7 @@ PopupWindow {
 
                             NIconButton {
                                 baseSize: 34
-                                visible: ModulesConfig.showInTray("wallpaper", ControlCenterState.panel)
+                                visible: ModulesConfig.showInControlCenter("wallpaper", ControlCenterState.panel)
                                 tooltipText: "Wallpaper"
                                 colorBg: "transparent"
                                 colorBorder: "transparent"
@@ -902,7 +904,7 @@ PopupWindow {
             // Weather - the one piece of the reference screenshot deferred
             // out of the seventh Control Center pass specifically so it
             // wouldn't be bundled into an already-large media/audio change.
-            // No ModulesConfig tray gate - unlike the toggle/quick-launch
+            // No ModulesConfig inControlCenter gate - unlike the toggle/quick-launch
             // tiles above, there's no existing bar presence to preserve or
             // hide, and a location/weather API is opt-in by nature (simply
             // shows "Loading weather..." until the first fetch resolves,
@@ -960,10 +962,10 @@ PopupWindow {
                     // Center) no longer applies - the user asked to drop
                     // Bar.qml's MediaWidget now that this card exists,
                     // since showing the same now-playing info in both spots
-                    // was redundant. `mediaPlayer`'s tray default flipped to
+                    // was redundant. `mediaPlayer`'s inControlCenter default flipped to
                     // `true` at the same time (ModulesConfig.qml), so this
                     // card is properly gated like every other tile here now.
-                    visible: ModulesConfig.showInTray("mediaPlayer", ControlCenterState.panel) && !!MediaService.currentPlayer
+                    visible: ModulesConfig.showInControlCenter("mediaPlayer", ControlCenterState.panel) && !!MediaService.currentPlayer
 
                     Item {
                         width: parent.width
@@ -1071,7 +1073,7 @@ PopupWindow {
                     // card's own width rather than duplicating its
                     // Process+SplitParser capture logic a second time.
                     // Wrapped in a Loader active only while both this card
-                    // (visible: ModulesConfig.showInTray("mediaPlayer",...)
+                    // (visible: ModulesConfig.showInControlCenter("mediaPlayer",...)
                     // && !!MediaService.currentPlayer, above) AND Control
                     // Center itself are actually visible - AudioVisualizer's
                     // own header comment is explicit that it carries a real,
@@ -1144,7 +1146,7 @@ PopupWindow {
                     anchors.left: parent.left
                     width: 290 // matches mediaCard's own width - see its comment
                     spacing: 8
-                    visible: ModulesConfig.showInTray("mediaPlayer", ControlCenterState.panel) && !MediaService.currentPlayer
+                    visible: ModulesConfig.showInControlCenter("mediaPlayer", ControlCenterState.panel) && !MediaService.currentPlayer
 
                     Item {
                         width: parent.width

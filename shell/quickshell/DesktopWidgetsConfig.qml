@@ -9,7 +9,7 @@ import Quickshell.Io
 // ModulesConfig.qml/modules.json and DockConfig.qml/dock.json: hand-editable
 // directly, or through Settings.qml's "Desktop Widgets" category - both take
 // effect live, no qs restart needed. A plain per-id "enabled" map rather
-// than ModulesConfig's fuller shape (screens/tray/section/order) - none of
+// than ModulesConfig's fuller shape (screens/inControlCenter/section/order) - none of
 // those bar-specific concepts apply here, desktop widgets aren't per-monitor
 // or bar-embedded.
 QtObject {

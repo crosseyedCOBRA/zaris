@@ -8,11 +8,11 @@ import Quickshell
 // this is a separate file rather than a nested Component closing over
 // Bar.qml's own `panel`/`barSurface` ids.
 //
-// Used to be a "..." chevron hidden whenever nothing was tray-enabled (back
-// when Control Center was just the old flat hidden-tray flyout). Now always
-// visible: the panel always has real content regardless of any one
-// module's tray setting (the profile header, toggle grid, quick-launch
-// tiles, and audio section aren't tray-gated at all).
+// Used to be a "..." chevron hidden whenever nothing was shown in Control
+// Center (back when this was the old flat hidden-overflow flyout). Now
+// always visible: the panel always has real content regardless of any
+// one module's inControlCenter setting (the profile header, toggle grid,
+// quick-launch tiles, and audio section aren't gated on it at all).
 //
 // The source asset itself is 347x304, not truly square -
 // `PreserveAspectFit` into a square box was letterboxing it (real empty
