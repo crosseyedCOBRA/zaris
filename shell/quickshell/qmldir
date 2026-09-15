@@ -113,6 +113,7 @@ OSD 1.0 OSD.qml
 DesktopClock 1.0 DesktopClock.qml
 WeatherIndicator 1.0 WeatherIndicator.qml
 BrightnessIndicator 1.0 BrightnessIndicator.qml
+ColorPicker 1.0 ColorPicker.qml
 DockIcons 1.0 DockIcons.qml
 DockContent 1.0 DockContent.qml
 DockLauncherIcon 1.0 DockLauncherIcon.qml

@@ -320,7 +320,8 @@ PopupWindow {
         weather: "Weather",
         brightness: "Brightness",
         taskbar: "Taskbar (running apps)",
-        controlCenter: "Control Center"
+        controlCenter: "Control Center",
+        colorPicker: "Color picker"
     })
 
     // Control Center tab's own chip labels - a few of these read

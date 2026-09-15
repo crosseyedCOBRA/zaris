@@ -79,6 +79,7 @@ Row {
                     case "bluetooth": return bluetoothComponent
                     case "wifi": return wifiComponent
                     case "volume": return volumeComponent
+                    case "colorPicker": return colorPickerComponent
                     default: return null
                     }
                 }
@@ -90,6 +91,13 @@ Row {
         id: volumeComponent
         VolumeControl {
             textColor: Colors.purple
+        }
+    }
+
+    Component {
+        id: colorPickerComponent
+        ColorPicker {
+            textColor: Colors.coral
         }
     }
 
