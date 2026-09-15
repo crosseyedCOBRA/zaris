@@ -1011,6 +1011,15 @@ void Events::eventButtonRelease(xcb_generic_event_t* event) {
     // ungrab the mouse ptr
     xcb_ungrab_pointer(g_pWindowManager->DisplayConnection, XCB_CURRENT_TIME);
 
+    // Heal whichever window the live drag-retile preview last shrank,
+    // unconditionally and before the real re-tile below - the real
+    // insertion (toggleActiveWindowFloating -> remapWindow ->
+    // calculateNewTileSetOldTile) reads the hovered window's CURRENT
+    // size/position as the base rect to split from, so a still-shrunk
+    // preview at the exact moment of drop would make the real split
+    // compute from an already-halved rect instead of the true one.
+    g_pWindowManager->clearDragRetilePreview();
+
     if (PACTINGWINDOW) {
         PACTINGWINDOW->setDirty(true);
 
@@ -1018,7 +1027,7 @@ void Events::eventButtonRelease(xcb_generic_event_t* event) {
             g_pWindowManager->LastWindow = PACTINGWINDOW->getDrawable();
             KeybindManager::toggleActiveWindowFloating("");
         }
-            
+
     }
 
     g_pWindowManager->actingOnWindowFloating = 0;
@@ -1077,9 +1086,15 @@ void Events::eventMotionNotify(xcb_generic_event_t* event) {
             PACTINGWINDOW->setWorkspaceID(WORKSPACE);
         } else {
             Debug::log(WARN, "Monitor was nullptr! Ignoring workspace change in MouseMoveEvent.");
-        } 
+        }
 
         PACTINGWINDOW->setDirty(true);
+
+        // Live drag-to-retile preview - only meaningful for a window that
+        // started this drag tiled (now floated for the duration, see
+        // eventButtonPress) and hasn't been released yet.
+        if (PACTINGWINDOW->getDraggingTiled())
+            g_pWindowManager->updateDragRetilePreview(PACTINGWINDOW);
     } else if (g_pWindowManager->mouseKeyDown == 3) {
 
         if (!PACTINGWINDOW->getIsFloating()) {

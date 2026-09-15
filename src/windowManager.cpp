@@ -1060,6 +1060,77 @@ CWindow* CWindowManager::findWindowAtCursor() {
     return nullptr;
 }
 
+// Live drag-to-retile preview: while a tiled window is being mod-dragged
+// (it's floated the instant the drag starts, same as before this feature
+// - see eventButtonPress's own comment), called from eventMotionNotify on
+// every motion event to make whichever tiled window is currently under
+// the cursor visibly shrink to the half it would keep if the drag ended
+// right now - other windows previously being previewed against snap back
+// the moment the hovered target changes.
+//
+// Deliberately never touches the tree (ParentNodeID/ChildNodeAID/BID or
+// any split ratio) - only the target's own Position/Size, which is safe
+// specifically because a real dwindle insertion next to a target only
+// ever affects that target itself (it keeps half its old rect, the new
+// window takes the other half - see calculateNewTileSetOldTile's own
+// DWINDLE case, whose split math this mirrors) and never ripples further
+// up the tree. That's what makes clearing a preview trivial and always
+// correct: recalcEntireWorkspace() only ever reads the untouched tree/
+// split ratios, so calling it heals any direct override this function
+// made, regardless of what was previewed before.
+//
+// Dwindle-only for now - master layout inserts by reflowing its *whole*
+// stack (see calculateNewTileSetOldTile's LAYOUT_MASTER case, which is
+// just recalcEntireWorkspace already), which would need every other
+// stack member temporarily accounted for too, not a single-window
+// preview like this. A real follow-up, not silently dropped - see
+// ROADMAP.md.
+void CWindowManager::clearDragRetilePreview() {
+    if (DragPreviewTargetID == 0)
+        return;
+
+    // See updateDragRetilePreview()'s own header comment for why a plain
+    // recalc always correctly heals whatever was previewed, regardless of
+    // which window it was.
+    if (const auto PPREV = getWindowFromDrawable(DragPreviewTargetID); PPREV)
+        recalcEntireWorkspace(PPREV->getWorkspaceID());
+
+    DragPreviewTargetID = 0;
+}
+
+void CWindowManager::updateDragRetilePreview(CWindow* pDraggedWindow) {
+    if (ConfigManager::getInt("layout") != LAYOUT_DWINDLE)
+        return;
+
+    const auto PTARGET = findWindowAtCursor();
+
+    const bool VALIDTARGET = PTARGET && PTARGET->getDrawable() != pDraggedWindow->getDrawable() && !PTARGET->getDock() &&
+        PTARGET->getWorkspaceID() == pDraggedWindow->getWorkspaceID();
+
+    const xcb_drawable_t NEWTARGETID = VALIDTARGET ? PTARGET->getDrawable() : 0;
+
+    if (NEWTARGETID == DragPreviewTargetID)
+        return; // same as last motion event - nothing changed, avoid a redundant recalc every single pixel of movement
+
+    clearDragRetilePreview();
+    DragPreviewTargetID = NEWTARGETID;
+
+    if (!VALIDTARGET)
+        return;
+
+    // Same wide-vs-tall split axis choice as calculateNewTileSetOldTile's
+    // real DWINDLE insertion - the target keeps the "first" half (same
+    // position, halved on whichever axis is currently longer), matching
+    // exactly where a real insertion would leave it.
+    const auto SIZE = PTARGET->getSize();
+    if (SIZE.x > SIZE.y)
+        PTARGET->setSize(Vector2D(SIZE.x / 2.f, SIZE.y));
+    else
+        PTARGET->setSize(Vector2D(SIZE.x, SIZE.y / 2.f));
+
+    PTARGET->setDirty(true);
+}
+
 CWindow* CWindowManager::findFirstWindowOnWorkspace(const int& work) {
     for (auto& w : windows) {
         if (w.getWorkspaceID() == work && !w.getIsFloating() && !w.getNoInterventions() && w.getDrawable() > 0) {
