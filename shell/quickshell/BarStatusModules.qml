@@ -80,6 +80,7 @@ Row {
                     case "wifi": return wifiComponent
                     case "volume": return volumeComponent
                     case "colorPicker": return colorPickerComponent
+                    case "clock": return clockComponent
                     case "vpn": return vpnComponent
                     case "privacy": return privacyComponent
                     case "audioVisualizer": return audioVisualizerComponent
@@ -102,6 +103,11 @@ Row {
         ColorPicker {
             textColor: Colors.coral
         }
+    }
+
+    Component {
+        id: clockComponent
+        BarClockText {}
     }
 
     Component {

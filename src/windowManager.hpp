@@ -34,12 +34,12 @@ public:
     Vector2D                    mouseLastPos = Vector2D(0, 0);
     int64_t                     actingOnWindowFloating = 0;
 
-    // Live drag-to-retile preview (dwindle layout only for now - master's
-    // whole-stack reflow needs a different mechanism, not yet built, see
-    // ROADMAP.md). 0 = no preview currently active. Tracks which tiled
-    // window is currently shown shrunk to make room for the window being
-    // dragged over it - see updateDragRetilePreview()'s own comment for
-    // why a single resize is the whole preview, no tree changes needed.
+    // Live drag-to-retile preview, both dwindle and master layouts (see
+    // updateDragRetilePreview()'s own comment for the two different
+    // mechanisms - dwindle shrinks just the hovered target, master
+    // recalculates the whole stack). 0 = no preview currently active,
+    // otherwise the drawable of whichever tiled window is currently
+    // hovered.
     xcb_drawable_t              DragPreviewTargetID = 0;
     void                        updateDragRetilePreview(CWindow* pDraggedWindow);
     // Heals whatever the preview last shrank and resets the tracked

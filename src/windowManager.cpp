@@ -1063,35 +1063,19 @@ CWindow* CWindowManager::findWindowAtCursor() {
 // Live drag-to-retile preview: while a tiled window is being mod-dragged
 // (it's floated the instant the drag starts, same as before this feature
 // - see eventButtonPress's own comment), called from eventMotionNotify on
-// every motion event to make whichever tiled window is currently under
-// the cursor visibly shrink to the half it would keep if the drag ended
-// right now - other windows previously being previewed against snap back
-// the moment the hovered target changes.
-//
-// Deliberately never touches the tree (ParentNodeID/ChildNodeAID/BID or
-// any split ratio) - only the target's own Position/Size, which is safe
-// specifically because a real dwindle insertion next to a target only
-// ever affects that target itself (it keeps half its old rect, the new
-// window takes the other half - see calculateNewTileSetOldTile's own
-// DWINDLE case, whose split math this mirrors) and never ripples further
-// up the tree. That's what makes clearing a preview trivial and always
-// correct: recalcEntireWorkspace() only ever reads the untouched tree/
-// split ratios, so calling it heals any direct override this function
-// made, regardless of what was previewed before.
-//
-// Dwindle-only for now - master layout inserts by reflowing its *whole*
-// stack (see calculateNewTileSetOldTile's LAYOUT_MASTER case, which is
-// just recalcEntireWorkspace already), which would need every other
-// stack member temporarily accounted for too, not a single-window
-// preview like this. A real follow-up, not silently dropped - see
-// ROADMAP.md.
+// every motion event to make the tiled layout visibly react to whatever's
+// currently under the cursor, as if the drag ended right now - reverting
+// the moment the hovered target changes. Two different mechanisms
+// depending on layout (see updateDragRetilePreview()'s own comment for
+// why), but one shared healing path: clearDragRetilePreview() always
+// correctly restores things via a plain recalcEntireWorkspace(), which
+// only ever reads the real, persisted tree/master state - never whatever
+// this function most recently overrode - regardless of which layout or
+// which window was being previewed.
 void CWindowManager::clearDragRetilePreview() {
     if (DragPreviewTargetID == 0)
         return;
 
-    // See updateDragRetilePreview()'s own header comment for why a plain
-    // recalc always correctly heals whatever was previewed, regardless of
-    // which window it was.
     if (const auto PPREV = getWindowFromDrawable(DragPreviewTargetID); PPREV)
         recalcEntireWorkspace(PPREV->getWorkspaceID());
 
@@ -1099,7 +1083,8 @@ void CWindowManager::clearDragRetilePreview() {
 }
 
 void CWindowManager::updateDragRetilePreview(CWindow* pDraggedWindow) {
-    if (ConfigManager::getInt("layout") != LAYOUT_DWINDLE)
+    const auto LAYOUT = ConfigManager::getInt("layout");
+    if (LAYOUT != LAYOUT_DWINDLE && LAYOUT != LAYOUT_MASTER)
         return;
 
     const auto PTARGET = findWindowAtCursor();
@@ -1118,17 +1103,61 @@ void CWindowManager::updateDragRetilePreview(CWindow* pDraggedWindow) {
     if (!VALIDTARGET)
         return;
 
-    // Same wide-vs-tall split axis choice as calculateNewTileSetOldTile's
-    // real DWINDLE insertion - the target keeps the "first" half (same
-    // position, halved on whichever axis is currently longer), matching
-    // exactly where a real insertion would leave it.
-    const auto SIZE = PTARGET->getSize();
-    if (SIZE.x > SIZE.y)
-        PTARGET->setSize(Vector2D(SIZE.x / 2.f, SIZE.y));
-    else
-        PTARGET->setSize(Vector2D(SIZE.x, SIZE.y / 2.f));
+    if (LAYOUT == LAYOUT_DWINDLE) {
+        // A real dwindle insertion next to a target only ever affects
+        // that target itself (it keeps half its old rect, the new
+        // window takes the other half - see calculateNewTileSetOldTile's
+        // own DWINDLE case, whose split math this mirrors) and never
+        // ripples further up the tree - so a single resize, touching
+        // neither the tree (ParentNodeID/ChildNodeAID/BID) nor any split
+        // ratio, is the complete, correct preview.
+        const auto SIZE = PTARGET->getSize();
+        if (SIZE.x > SIZE.y)
+            PTARGET->setSize(Vector2D(SIZE.x / 2.f, SIZE.y));
+        else
+            PTARGET->setSize(Vector2D(SIZE.x, SIZE.y / 2.f));
 
-    PTARGET->setDirty(true);
+        PTARGET->setDirty(true);
+        return;
+    }
+
+    // LAYOUT_MASTER: unlike dwindle, a real master insertion reflows the
+    // *whole* stack (every child's height is PMONITOR->vecSize.y /
+    // children.size() - adding one more changes that denominator for all
+    // of them, not just local neighbors - see recalcEntireWorkspace's own
+    // LAYOUT_MASTER case). Rather than reimplementing that math a second
+    // time, this calls the real recalcEntireWorkspace() and lets the
+    // dragged window itself be genuinely counted as one more child for
+    // the duration - its own children-list filter (!getMaster() && ...)
+    // has no floating check, so a floating window already gets counted
+    // fully correctly, no special-casing needed there.
+    //
+    // Two things specific to the dragged window need handling first,
+    // though: floating a window (starting this drag) already runs
+    // fixWindowOnClose()'s own master-layout fixup, which reassigns a
+    // new master if the dragged window *was* the master - but leaves
+    // the dragged window's own Master flag still true (never explicitly
+    // cleared - see fixMasterWorkspaceOnClosed's own code), which would
+    // wrongly exclude it from the children list below. And its
+    // MasterChildIndex is left stale from wherever it sat before the
+    // drag, not wherever it's actually hovering now - set explicitly so
+    // the stack reorders to reflect the real cursor position, matching
+    // dropping on the master itself to "become the new first child."
+    pDraggedWindow->setMaster(false);
+    pDraggedWindow->setMasterChildIndex(PTARGET->getMaster() ? 0 : PTARGET->getMasterChildIndex());
+
+    // recalcEntireWorkspace() would also reposition the dragged window
+    // itself (it's now correctly counted as a child) - save its real
+    // floating/cursor-following geometry first and restore it after, it
+    // must keep following the cursor, not snap into its preview slot.
+    const auto DRAGGEDPOS = pDraggedWindow->getPosition();
+    const auto DRAGGEDSIZE = pDraggedWindow->getSize();
+
+    recalcEntireWorkspace(pDraggedWindow->getWorkspaceID());
+
+    pDraggedWindow->setPosition(DRAGGEDPOS);
+    pDraggedWindow->setSize(DRAGGEDSIZE);
+    pDraggedWindow->setDirty(true);
 }
 
 CWindow* CWindowManager::findFirstWindowOnWorkspace(const int& work) {

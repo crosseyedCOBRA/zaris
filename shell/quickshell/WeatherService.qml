@@ -209,7 +209,20 @@ QtObject {
 
                 const days = []
                 for (let i = 0; i < data.daily.time.length; i++) {
-                    const label = i === 0 ? "Today" : Qt.locale().dayName(new Date(data.daily.time[i]).getDay(), Locale.ShortFormat)
+                    // data.daily.time[i] is a date-only string ("2026-09-16")
+                    // - new Date() on a bare date-only string parses it as
+                    // UTC midnight, not local midnight. In any timezone
+                    // behind UTC (this project's own reference location,
+                    // North Carolina, is UTC-4/-5), that shifts the
+                    // resulting .getDay() back a whole weekday - reported
+                    // live as the forecast's second entry showing today's
+                    // weekday name again instead of tomorrow's, with
+                    // genuinely different (correct, tomorrow's) readings
+                    // underneath the wrong label. Appending a bare local
+                    // time (no "Z"/offset) makes the same Date constructor
+                    // parse it as local midnight instead, per the ISO 8601
+                    // date-time (not date-only) parsing rules.
+                    const label = i === 0 ? "Today" : Qt.locale().dayName(new Date(data.daily.time[i] + "T00:00:00").getDay(), Locale.ShortFormat)
                     days.push({
                         label: label,
                         weatherCode: data.daily.weather_code[i],

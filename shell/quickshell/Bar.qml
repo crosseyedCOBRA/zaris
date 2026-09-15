@@ -144,14 +144,11 @@ Variants {
                     }
                 }
 
-                // --- center: clock, then any center-assigned modules ---
+                // --- center: clock and any other center-assigned modules
+                // (clock is a real module now too - see ModulesConfig.qml) ---
                 Row {
                     anchors.centerIn: parent
                     spacing: 14
-
-                    BarClockText {
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
 
                     BarStatusModules {
                         barPanel: panel
@@ -224,8 +221,8 @@ Variants {
                     anchors.centerIn: parent
                 }
 
-                // --- right: system status (Control Center included, now a
-                // real module - see ModulesConfig.qml) + clock ---
+                // --- right: system status, Control Center, and clock -
+                // all real modules now (see ModulesConfig.qml) ---
                 Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -236,10 +233,6 @@ Variants {
                         barSurfaceItem: barSurface
                         section: "right"
                         anySection: true
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    BarClockText {
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }

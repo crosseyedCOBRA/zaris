@@ -48,7 +48,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy", "audioVisualizer"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy", "audioVisualizer", "clock"]
 
     // The subset Settings' new "Bar Modules" tab lets you add/reorder -
     // every id above except mediaPlayer, which has no bar-side rendering
@@ -168,6 +168,13 @@ QtObject {
             // it, since nothing can render after Volume's own fixed
             // position without un-fixing that too.
             property var controlCenter: ({ enabled: true, screens: "all", tray: false, section: "right", order: 100 })
+            // Previously a fixed BarClockText.qml instantiation - center
+            // section in "statusbar" layout, right side (before Control
+            // Center) in "taskbar" - order 98 approximates that taskbar
+            // position (sorts just before volume's 99/controlCenter's
+            // 100), and is irrelevant in statusbar mode since nothing
+            // else defaults to "center".
+            property var clock: ({ enabled: true, screens: "all", tray: false, section: "center", order: 98 })
             // Off by default - a new, less-discovered action (needs
             // xcolor installed) rather than a status readout everyone
             // wants visible immediately.
