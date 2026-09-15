@@ -82,6 +82,7 @@ Row {
                     case "colorPicker": return colorPickerComponent
                     case "vpn": return vpnComponent
                     case "privacy": return privacyComponent
+                    case "audioVisualizer": return audioVisualizerComponent
                     default: return null
                     }
                 }
@@ -116,6 +117,13 @@ Row {
         PrivacyIndicator {
             micColor: Colors.red
             cameraColor: Colors.red
+        }
+    }
+
+    Component {
+        id: audioVisualizerComponent
+        AudioVisualizer {
+            barColor: Colors.teal
         }
     }
 

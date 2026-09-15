@@ -48,7 +48,7 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy"]
+    readonly property var moduleIds: ["launcher", "workspaces", "kernel", "cpu", "cpuTemp", "gpuTemp", "ram", "network", "wifi", "volume", "stayAwake", "nightLight", "dnd", "bluetooth", "mediaPlayer", "clipboard", "wallpaper", "battery", "notifications", "weather", "brightness", "taskbar", "controlCenter", "colorPicker", "vpn", "privacy", "audioVisualizer"]
 
     // The subset Settings' new "Bar Modules" tab lets you add/reorder -
     // every id above except mediaPlayer, which has no bar-side rendering
@@ -181,6 +181,18 @@ QtObject {
             // is open, same graceful-degrade pattern as vpn/battery/
             // brightness above.
             property var privacy: ({ enabled: true, screens: "all", tray: false })
+            // Off by default - unlike everything else here, this one
+            // runs a continuous audio-capture process the whole time
+            // it's enabled (see AudioVisualizer.qml's own comment), real
+            // ongoing CPU cost rather than a cheap periodic poll.
+            // screens: "primary" for the same reason kernel/network
+            // already default there (Bar.qml's own header comment: no
+            // point duplicating this across every screen) - each
+            // monitor's bar runs its own independent copy of whatever
+            // this module does, so "all" would mean N redundant parec
+            // capture processes, not just N redundant cheap polls like
+            // every other module here.
+            property var audioVisualizer: ({ enabled: false, screens: "primary", tray: false })
 
             // Control Center's vertical gauge stack (CPU load/CPU temp/
             // GPU temp/RAM) - deliberately NOT the same enabled/screens/

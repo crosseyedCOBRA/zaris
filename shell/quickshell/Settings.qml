@@ -323,7 +323,8 @@ PopupWindow {
         controlCenter: "Control Center",
         colorPicker: "Color picker",
         vpn: "VPN",
-        privacy: "Privacy (mic/camera in use)"
+        privacy: "Privacy (mic/camera in use)",
+        audioVisualizer: "Audio visualizer"
     })
 
     // Control Center tab's own chip labels - a few of these read

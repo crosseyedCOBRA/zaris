@@ -42,7 +42,15 @@ Item {
     property color micColor: "white"
     property color cameraColor: "white"
 
-    readonly property bool micActive: Pipewire.nodes.values.some(function (n) { return !n.isSink && n.isStream })
+    // Excludes the bar's own audio visualizer (shell/zaris/audio-levels.sh,
+    // "zaris-audio-visualizer") - confirmed live that a monitor-loopback
+    // capture is indistinguishable from a real mic recording at the
+    // media.class level (both are plain Stream/Input/Audio), so without
+    // this exclusion enabling the visualizer permanently flagged "mic in
+    // use" for something that was never actually recording anything.
+    readonly property bool micActive: Pipewire.nodes.values.some(function (n) {
+        return !n.isSink && n.isStream && n.name !== "zaris-audio-visualizer"
+    })
     property bool cameraActive: false
 
     PwObjectTracker {
