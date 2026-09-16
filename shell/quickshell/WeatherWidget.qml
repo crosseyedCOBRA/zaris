@@ -21,8 +21,14 @@ Column {
 
     spacing: 12
 
+    // Was `width: parent.width` (this Row left-aligned within its own
+    // full-width bounds, since Row positions children starting at x: 0) -
+    // centered as a group instead, sized to its own natural content width -
+    // reported live as wanting everything in this widget centered, and
+    // this was the one row not already centered/evenly distributed
+    // (unlike the per-cell-centered forecast row below).
     Row {
-        width: parent.width
+        anchors.horizontalCenter: parent.horizontalCenter
         spacing: 12
 
         NText {

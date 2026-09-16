@@ -121,6 +121,51 @@ PopupWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 10
 
+                    // Airplane Mode - relocated here from Control
+                    // Center's quick-access row per explicit request
+                    // ("instead of fully removing Airplane Mode, add
+                    // that as a button to the top of the network widget
+                    // in the bar") - a better fit grouped with this
+                    // panel's own Wi-Fi radio toggle/Settings/Close than
+                    // sitting redundantly next to individual Ethernet/
+                    // Wifi toggles elsewhere. `nmcli networking off/on`
+                    // (AirplaneModeState.qml) rather than this panel's
+                    // own per-tab wifi-radio/ethernet-device controls -
+                    // still the single "turn off everything at once"
+                    // action, just living beside the controls for those
+                    // same interfaces individually now.
+                    Item {
+                        id: airplaneModeButton
+                        width: 26
+                        height: 26
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: airplaneModeArea.containsMouse ? Colors.pillActive : "transparent"
+                            border.width: Style.borderS
+                            border.color: Colors.textMuted
+                            Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                        }
+
+                        AirplaneMode {
+                            anchors.centerIn: parent
+                            clickable: false
+                            textColor: Colors.textMuted
+                            activeColor: Colors.red
+                            pointSize: Style.fontSizeM
+                        }
+
+                        MouseArea {
+                            id: airplaneModeArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: AirplaneModeState.toggle()
+                            onEntered: TooltipService.show(airplaneModeButton, "Airplane Mode", "auto")
+                            onExited: TooltipService.hide(airplaneModeButton)
+                        }
+                    }
+
                     ToggleSwitch {
                         visible: NetworkPanelState.activeTab === "wifi"
                         anchors.verticalCenter: parent.verticalCenter

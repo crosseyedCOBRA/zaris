@@ -92,8 +92,10 @@ PopupWindow {
     // for 4 across; content width is implicitWidth - 180 sidebar - 40
     // NScrollView margins) - 3 rows max now covers the full 12-preset cap
     // (5 built-in + up to 7 saved) without ever needing the Flow to wrap
-    // into a 4th row.
-    implicitWidth: 740
+    // into a 4th row. Widened further to 820 per explicit request ("a bit
+    // wider") - still leaves the preset grid comfortably at 4-per-row,
+    // just with extra breathing room around it rather than a tighter fit.
+    implicitWidth: 820
     // Tall enough that every category's content fits without the
     // NScrollView ever actually needing to scroll - the Defaults tab (six
     // Default-app dropdowns plus a Screenshot folder field, added on top
@@ -106,19 +108,28 @@ PopupWindow {
     // own description trimmed to one line, and the long icon/cursor/font
     // restart-note paragraph at the bottom reworded shorter without
     // losing any of its actual content - only grew implicitHeight once
-    // those savings alone still weren't enough. 1040 is a few px past the
+    // those savings alone still weren't enough. 1040 was a few px past the
     // theoretical safe ceiling (974px: a bar-position-aware popup,
     // BarConfig.popupAnchorY, opening upward above a bottom-positioned
     // bar at its maximum configurable height - 96px, the default is 44px
     // - on a monitor exactly 1080px tall), accepted deliberately rather
     // than trimmed further - that specific combination is a narrow edge
-    // case, and even then the overflow is small, not a severe breakage.
+    // case, and even then the overflow was small, not a severe breakage.
     // A shorter window that scrolled internally would have had more
     // slack to work with, but per explicit user preference this shows
     // everything statically instead; splitting a category further (like
     // Bar/Modules already were) is the intended fix if a future addition
     // ever makes one category's content taller than this.
-    implicitHeight: 1040
+    //
+    // Trimmed to 980 per a later explicit request ("a bit smaller in
+    // height") - stays just above the 974 safe-ceiling figure above
+    // (so that specific bottom-bar-at-max-height edge case still isn't
+    // newly broken), but is close enough to it that the Defaults tab
+    // (the tallest one, per this comment's own history) may need to
+    // start scrolling in some configurations where it previously didn't -
+    // if that's ever reported live, split Defaults into two categories
+    // (same fix already suggested above) rather than growing this back.
+    implicitHeight: 980
 
     anchor.item: SettingsState.targetItem
     // Horizontally centered under the bar, same as CalendarFlyout centers
@@ -155,8 +166,8 @@ PopupWindow {
     }
 
     // ==================== Module chip drag-and-drop ====================
-    // Backs the Bar Modules/Control Center tabs' drag-to-reorder chips
-    // (ModuleChip.qml). Deliberately NOT per-chip Drag/DropArea +
+    // Backs the Bar Modules tab's drag-to-reorder chips (ModuleChip.qml).
+    // Deliberately NOT per-chip Drag/DropArea +
     // reparenting (the more "native" QML pattern) - a dragged chip is
     // itself one of a Repeater's generated delegates, and reparenting a
     // Repeater-owned item away mid-drag risks fighting the Repeater's own
@@ -171,8 +182,8 @@ PopupWindow {
     property bool chipDragActive: false
     property string chipDragId: ""
     property string chipDragLabel: ""
-    // "left"/"center"/"right" for the Bar Modules tab, "controlCenter" for
-    // Control Center - which reorder function endChipDrag() should call.
+    // "left"/"center"/"right" for the Bar Modules tab - which section
+    // endChipDrag() should reorder.
     property string chipDragOrigin: ""
     property real chipDragX: 0
     property real chipDragY: 0
@@ -231,28 +242,18 @@ PopupWindow {
 
     // Called on release - hit-tests the drop point against whichever
     // tab's drop zones are actually visible right now (bar_left/
-    // bar_center/bar_right/controlCenter - the zone ids referenced here are
-    // declared further down this same file, inside each tab's own
-    // content Column; a plain JS function like this one only resolves
-    // them at call time, once the whole window is already built, so the
-    // "used before declared" ordering here is fine) and commits the
-    // reorder through ModulesConfig.
+    // bar_center/bar_right - the zone ids referenced here are declared
+    // further down this same file, inside each tab's own content Column;
+    // a plain JS function like this one only resolves them at call time,
+    // once the whole window is already built, so the "used before
+    // declared" ordering here is fine) and commits the reorder through
+    // ModulesConfig.
     function endChipDrag(windowX, windowY) {
         const id = settingsWindow.chipDragId
         const origin = settingsWindow.chipDragOrigin
         settingsWindow.chipDragActive = false
         if (id === "")
             return
-
-        if (origin === "controlCenter") {
-            if (!settingsWindow.pointInZone(controlCenterZone, windowX, windowY))
-                return
-            const ids = ModulesConfig.controlCenterModulesForSettings().filter(function (i) { return i !== id })
-            const idx = settingsWindow.computeInsertIndex(controlCenterFlow, id, windowX, windowY)
-            ids.splice(idx, 0, id)
-            ModulesConfig.reorderControlCenterModules(ids)
-            return
-        }
 
         const zones = [
             { section: "left", zone: barLeftZone, flow: barLeftFlow },
@@ -293,7 +294,6 @@ PopupWindow {
         { id: "profile", label: "Profile", icon: "" },
         { id: "datetime", label: "Date/Time", icon: "" },
         { id: "barModules", label: "Bar Modules", icon: "" },
-        { id: "controlCenterModules", label: "Control Center", icon: "" },
         { id: "weather", label: "Weather", icon: "" }
     ]
 
@@ -327,23 +327,6 @@ PopupWindow {
         audioVisualizer: "Audio visualizer",
         clock: "Clock",
         networkPanel: "Network (Wi-Fi/Ethernet panel)"
-    })
-
-    // Control Center tab's own chip labels - a few of these read
-    // differently in Control Center's actual tile grid than
-    // moduleNames' own bar-context wording above (network -> "Ethernet",
-    // matching ControlCenter.qml's own tile after the earlier "Network"
-    // to "Ethernet" rename; nightLight/dnd/clipboard/stayAwake trimmed to
-    // match ControlCenter.qml's own tile labels exactly) - falls back to
-    // moduleNames for any id not listed here.
-    readonly property var ccModuleNames: ({
-        stayAwake: "Stay Awake",
-        dnd: "Do Not Disturb",
-        nightLight: "Night Light",
-        network: "Ethernet",
-        wifi: "Wifi",
-        clipboard: "Clipboard",
-        bluetooth: "Bluetooth"
     })
 
     function categoryLabel(id) {
@@ -490,6 +473,121 @@ PopupWindow {
                                 spacing: 12
                                 NText { text: "Uptime"; width: 140; color: Colors.textMuted; pointSize: Style.fontSizeS }
                                 NText { text: HostService.uptimeText || "Unknown"; color: Colors.text; pointSize: Style.fontSizeM }
+                            }
+
+                            // Relocated here from the old, now-removed
+                            // "Control Center" tab - that tab's other
+                            // half (an Ethernet/Wifi/Clipboard/Bluetooth/
+                            // Stay Awake/Night Light reorder-chip UI) no
+                            // longer applied to anything real once
+                            // Control Center's quick-access row became
+                            // nine fixed, always-shown buttons in a fixed
+                            // order rather than a reorderable tile grid -
+                            // toggling a module off there had started
+                            // silently hiding it from that fixed row too
+                            // (reported live as Ethernet/Wifi/Clipboard
+                            // missing), a confusing, no-longer-meaningful
+                            // interaction now that the row isn't actually
+                            // reorderable. These four gauge toggles were
+                            // a genuinely separate, still-real feature
+                            // (Control Center's own CPU/CPU temp/GPU
+                            // temp/RAM stack, independent of the button
+                            // row), so they moved here instead of being
+                            // deleted along with the rest of that tab.
+                            NText {
+                                text: "Control Center gauges"
+                                color: Colors.text
+                                pointSize: Style.fontSizeM
+                                font.weight: Style.fontWeightBold
+                                topPadding: 8
+                            }
+
+                            NText {
+                                text: "The vertical CPU load/CPU temperature/GPU temperature/RAM stack shown in Control Center, shown by default - turn any of these off individually."
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                color: Colors.textMuted
+                                pointSize: Style.fontSizeXS
+                            }
+
+                            Row {
+                                width: parent.width
+                                height: 32
+                                spacing: 12
+
+                                NText {
+                                    text: "CPU load"
+                                    width: 170
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Colors.text
+                                    pointSize: Style.fontSizeM
+                                }
+
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: ModulesConfig.configFile.adapter.ccGaugeCpu
+                                    onToggled: newChecked => ModulesConfig.setCcGaugeCpu(newChecked)
+                                }
+                            }
+
+                            Row {
+                                width: parent.width
+                                height: 32
+                                spacing: 12
+
+                                NText {
+                                    text: "CPU temperature"
+                                    width: 170
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Colors.text
+                                    pointSize: Style.fontSizeM
+                                }
+
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: ModulesConfig.configFile.adapter.ccGaugeCpuTemp
+                                    onToggled: newChecked => ModulesConfig.setCcGaugeCpuTemp(newChecked)
+                                }
+                            }
+
+                            Row {
+                                width: parent.width
+                                height: 32
+                                spacing: 12
+
+                                NText {
+                                    text: "GPU temperature"
+                                    width: 170
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Colors.text
+                                    pointSize: Style.fontSizeM
+                                }
+
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: ModulesConfig.configFile.adapter.ccGaugeGpuTemp
+                                    onToggled: newChecked => ModulesConfig.setCcGaugeGpuTemp(newChecked)
+                                }
+                            }
+
+                            Row {
+                                width: parent.width
+                                height: 32
+                                spacing: 12
+
+                                NText {
+                                    text: "RAM usage"
+                                    width: 170
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: Colors.text
+                                    pointSize: Style.fontSizeM
+                                }
+
+                                ToggleSwitch {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: ModulesConfig.configFile.adapter.ccGaugeRam
+                                    onToggled: newChecked => ModulesConfig.setCcGaugeRam(newChecked)
+                                }
                             }
 
                             NText {
@@ -1715,156 +1813,6 @@ PopupWindow {
                             }
                         }
 
-                        // ==================== Control Center (modules) ====================
-                        Column {
-                            width: parent.width
-                            spacing: 16
-                            visible: settingsWindow.activeCategory === "controlCenterModules"
-
-                            NText {
-                                text: "Reorders Control Center's Ethernet/Wifi/Clipboard/Bluetooth/Stay Awake/Night Light row. Its other sections (weather, media, audio, Wallpaper/Screenshot, Balanced/Battery) aren't reorderable yet."
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                                color: Colors.textMuted
-                                pointSize: Style.fontSizeXS
-                            }
-
-                            Rectangle {
-                                id: controlCenterZone
-                                width: parent.width
-                                height: Math.max(50, controlCenterFlow.implicitHeight + 16)
-                                radius: Style.radiusS
-                                color: Colors.pill
-                                border.width: 2
-                                border.color: settingsWindow.chipDragActive && settingsWindow.pointInZone(controlCenterZone, settingsWindow.chipDragX, settingsWindow.chipDragY) ? Colors.mPrimary : "transparent"
-
-                                Flow {
-                                    id: controlCenterFlow
-                                    anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: 6
-
-                                    Repeater {
-                                        model: ModulesConfig.controlCenterModulesForSettings()
-
-                                        ModuleChip {
-                                            required property string modelData
-                                            moduleId: modelData
-                                            label: settingsWindow.ccModuleNames[modelData] || settingsWindow.moduleNames[modelData] || modelData
-                                            dimmed: settingsWindow.chipDragActive && settingsWindow.chipDragId === modelData
-                                            onChipPressed: (wx, wy) => settingsWindow.startChipDrag(modelData, label, "controlCenter", wx, wy, width, height)
-                                            onChipPositionChanged: (wx, wy) => settingsWindow.updateChipDrag(wx, wy)
-                                            onChipReleased: (wx, wy) => settingsWindow.endChipDrag(wx, wy)
-                                            onRemoveClicked: ModulesConfig.removeFromControlCenter(modelData)
-                                        }
-                                    }
-                                }
-                            }
-
-                            NComboBox {
-                                width: 260
-                                placeholder: "Add a module..."
-                                currentKey: ""
-                                model: ModulesConfig.controlCenterModulesAvailableToAdd().map(function (id) { return { key: id, name: settingsWindow.ccModuleNames[id] || settingsWindow.moduleNames[id] || id } })
-                                onSelected: key => ModulesConfig.addToControlCenter(key)
-                            }
-
-                            NText {
-                                text: "System gauges"
-                                color: Colors.text
-                                pointSize: Style.fontSizeM
-                                font.weight: Style.fontWeightBold
-                                topPadding: 8
-                            }
-
-                            NText {
-                                text: "The vertical CPU load/CPU temperature/GPU temperature/RAM stack, shown by default - turn any of these off individually."
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                                color: Colors.textMuted
-                                pointSize: Style.fontSizeXS
-                            }
-
-                            Row {
-                                width: parent.width
-                                height: 32
-                                spacing: 12
-
-                                NText {
-                                    text: "CPU load"
-                                    width: 170
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: Colors.text
-                                    pointSize: Style.fontSizeM
-                                }
-
-                                ToggleSwitch {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    checked: ModulesConfig.configFile.adapter.ccGaugeCpu
-                                    onToggled: newChecked => ModulesConfig.setCcGaugeCpu(newChecked)
-                                }
-                            }
-
-                            Row {
-                                width: parent.width
-                                height: 32
-                                spacing: 12
-
-                                NText {
-                                    text: "CPU temperature"
-                                    width: 170
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: Colors.text
-                                    pointSize: Style.fontSizeM
-                                }
-
-                                ToggleSwitch {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    checked: ModulesConfig.configFile.adapter.ccGaugeCpuTemp
-                                    onToggled: newChecked => ModulesConfig.setCcGaugeCpuTemp(newChecked)
-                                }
-                            }
-
-                            Row {
-                                width: parent.width
-                                height: 32
-                                spacing: 12
-
-                                NText {
-                                    text: "GPU temperature"
-                                    width: 170
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: Colors.text
-                                    pointSize: Style.fontSizeM
-                                }
-
-                                ToggleSwitch {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    checked: ModulesConfig.configFile.adapter.ccGaugeGpuTemp
-                                    onToggled: newChecked => ModulesConfig.setCcGaugeGpuTemp(newChecked)
-                                }
-                            }
-
-                            Row {
-                                width: parent.width
-                                height: 32
-                                spacing: 12
-
-                                NText {
-                                    text: "RAM usage"
-                                    width: 170
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: Colors.text
-                                    pointSize: Style.fontSizeM
-                                }
-
-                                ToggleSwitch {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    checked: ModulesConfig.configFile.adapter.ccGaugeRam
-                                    onToggled: newChecked => ModulesConfig.setCcGaugeRam(newChecked)
-                                }
-                            }
-                        }
 
                         // ==================== Dock ====================
                         Column {

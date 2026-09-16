@@ -31,7 +31,21 @@ PopupWindow {
     property int margin: Style.marginXS
     property int padding: Style.marginM
     property int delay: 0
-    property int hideDelay: 0
+    // Was 0 (hide immediately, no debounce) - a real, brief exit+enter
+    // blip (something about hovering Control Center's buttons, cause not
+    // fully pinned down - a candidate is this window manager's
+    // alwaysOnTopWindows re-raise running on every X event, windowManager.
+    // cpp's reassertAlwaysOnTop()) was enough to start a full hide-fade
+    // every time, which the immediately-following re-entry never actually
+    // cancelled (see hide()'s own logic below, and TooltipService.show()'s
+    // "already active" branch, which now calls back into this file's own
+    // show() instead of a separate updateContent()-only path specifically
+    // so a pending hide gets cancelled) - reported live as "still
+    // flickering." A short buffer here means a real momentary blip never
+    // starts the fade at all, while a genuine, sustained mouse-leave still
+    // hides promptly (150ms reads as instant to a human, nowhere near
+    // "remain static until the cursor is moved off" territory).
+    property int hideDelay: 150
     property int maxWidth: 340
 
     property int animationDuration: Style.animationFast
@@ -120,10 +134,31 @@ PopupWindow {
         if (!target || !content || content === "")
             return
 
-        root.delay = showDelay
-
         hideTimer.stop()
         showTimer.stop()
+
+        // Already visible (or mid hide-fade) for this exact target - just
+        // cancel any hide-in-progress and keep it there (updating text/
+        // direction in place, snapping straight back to fully visible if
+        // it had started fading out) rather than falling through to the
+        // full show sequence below, which unconditionally reset opacity/
+        // scale back to 0 and restarted the whole fade-in - fine for a
+        // genuinely new tooltip, but a real, visible flicker on rapid
+        // re-entry for the *same* target (see TooltipService.show()'s own
+        // comment on the underlying cause).
+        if (visible && targetItem === target) {
+            hideAnimation.stop()
+            animatingOut = false
+            tooltipContainer.opacity = 1.0
+            tooltipContainer.scale = 1.0
+            text = content.replace(/\n/g, '<br>')
+            direction = customDirection !== undefined ? customDirection : "auto"
+            Qt.callLater(updateContentDeferred)
+            return
+        }
+
+        root.delay = showDelay
+
         hideAnimation.stop()
         animatingOut = false
 
@@ -315,13 +350,6 @@ PopupWindow {
         completeHide()
     }
 
-    function updateContent(newContent) {
-        if (visible && targetItem) {
-            text = newContent.replace(/\n/g, '<br>')
-            Qt.callLater(updateContentDeferred)
-        }
-    }
-
     function updateContentDeferred() {
         if (!visible || !targetItem)
             return
@@ -345,7 +373,11 @@ PopupWindow {
         text = ""
         isPositioned = false
         delay = 0
-        hideDelay = 0
+        // hideDelay is NOT reset here (was `hideDelay = 0`, silently
+        // undoing this file's own `property int hideDelay: 150` default
+        // the moment Component.onCompleted called this) - confirmed live
+        // via added debug logging that this was the actual reason the
+        // earlier hide-debounce fix never took effect at all.
         tooltipContainer.opacity = 1.0
         tooltipContainer.scale = 1.0
     }

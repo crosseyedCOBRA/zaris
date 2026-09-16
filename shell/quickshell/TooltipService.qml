@@ -6,102 +6,51 @@ import Quickshell
 // TooltipService.qml (MIT licensed, v4.7.7 - see README.md's "Third-party
 // code" section), stripped of `Settings.data.ui.tooltipsEnabled` (no
 // per-user settings persistence here - always enabled) and `Logger.*`
-// calls (no such logging singleton in Zaris). One shared Tooltip instance
-// is created/destroyed per show() call rather than a fixed pool, matching
-// upstream's own approach - tooltips are short-lived and infrequent enough
-// that this is simpler than pooling.
+// calls (no such logging singleton in Zaris). Tooltip support (a
+// `tooltipText` property plus the hover-triggered show()/hide() calls) was
+// restored via this file/Tooltip.qml for NButton/NIconButton/NTabButton/
+// NSettingsIndicator, which had it stripped out during the earlier
+// widget-library port (neither file existed yet at the time).
 //
-// This directly resolves a real gap from the earlier widget-library port:
-// NButton/NIconButton/NTabButton/NSettingsIndicator each had their tooltip
-// wiring fully stripped out when first ported, since neither this file nor
-// Tooltip.qml existed yet. Tooltip support (a `tooltipText` property plus
-// the hover-triggered show()/hide() calls) has been restored in all four
-// now that both exist.
+// One persistent Tooltip instance, reused for every hover target - was a
+// fresh Tooltip PopupWindow created via Component.createObject() and
+// destroyed again on every single show() call (matching upstream's own
+// per-call create/destroy approach, on the theory that tooltips are short-
+// lived and infrequent enough that a pool wasn't worth it). Reported live,
+// repeatedly, as Control Center's tooltips "flickering" on hover - two
+// rounds of hardening the show()/hide() state machine itself (debouncing
+// same-target re-entry, then fixing a reproduced bug where switching
+// targets synchronously hid whatever was currently showing even though
+// the replacement wouldn't be ready for another ~1s) were each verified
+// correct via live-captured logs (a real, stable single show/hide cycle,
+// zero repeated calls) but the user still saw visible flicker while
+// watching a scripted hover live afterward - meaning the show()/hide()
+// *logic* was never actually the remaining cause. The one thing neither
+// round touched: a genuinely new X11 window still got created and mapped
+// on every hover onto a *new* target, and window creation/mapping is
+// exactly the kind of operation that can produce a visible first-frame
+// flash independent of any QML-level state bug. A single persistent
+// window, just repositioned/retargeted/re-content-ed for each new hover,
+// removes that window churn entirely - there's only ever one Tooltip
+// window for the whole shell's lifetime now.
 Singleton {
     id: root
 
-    property var activeTooltip: null
-    property var pendingTooltip: null
-
-    property Component tooltipComponent: Component {
-        Tooltip {}
-    }
+    property Tooltip tooltip: Tooltip {}
 
     function show(target, content, direction, delay) {
         if (!target || !content || content === "")
             return
-
-        if (pendingTooltip) {
-            pendingTooltip.hideImmediately()
-            pendingTooltip.destroy()
-            pendingTooltip = null
-        }
-
-        if (activeTooltip && activeTooltip.targetItem !== target) {
-            activeTooltip.hideImmediately()
-            activeTooltip = null
-        }
-
-        if (activeTooltip && activeTooltip.targetItem === target) {
-            activeTooltip.updateContent(content)
-            return activeTooltip
-        }
-
-        const newTooltip = tooltipComponent.createObject(null)
-
-        if (newTooltip) {
-            pendingTooltip = newTooltip
-
-            newTooltip.visibleChanged.connect(() => {
-                if (!newTooltip.visible) {
-                    Qt.callLater(() => {
-                        if (newTooltip && !newTooltip.visible) {
-                            if (activeTooltip === newTooltip)
-                                activeTooltip = null
-                            if (pendingTooltip === newTooltip)
-                                pendingTooltip = null
-                            newTooltip.destroy()
-                        }
-                    })
-                } else {
-                    if (pendingTooltip === newTooltip) {
-                        activeTooltip = newTooltip
-                        pendingTooltip = null
-                    }
-                }
-            })
-
-            newTooltip.show(target, content, direction || "auto", delay !== undefined ? delay : Style.tooltipDelay)
-            return newTooltip
-        }
-
-        return null
+        tooltip.show(target, content, direction || "auto", delay !== undefined ? delay : Style.tooltipDelay)
     }
 
     function hide(target) {
-        if (target) {
-            if (pendingTooltip && pendingTooltip.targetItem === target)
-                pendingTooltip.hide()
-            if (activeTooltip && activeTooltip.targetItem === target)
-                activeTooltip.hide()
-        } else {
-            if (pendingTooltip)
-                pendingTooltip.hide()
-            if (activeTooltip)
-                activeTooltip.hide()
-        }
+        if (target && tooltip.targetItem !== target)
+            return
+        tooltip.hide()
     }
 
     function hideImmediately() {
-        if (pendingTooltip) {
-            pendingTooltip.hideImmediately()
-            pendingTooltip.destroy()
-            pendingTooltip = null
-        }
-        if (activeTooltip) {
-            activeTooltip.hideImmediately()
-            activeTooltip.destroy()
-            activeTooltip = null
-        }
+        tooltip.hideImmediately()
     }
 }

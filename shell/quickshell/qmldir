@@ -28,8 +28,8 @@ singleton OSDState 1.0 OSDState.qml
 singleton DockConfig 1.0 DockConfig.qml
 singleton PinDialogState 1.0 PinDialogState.qml
 singleton DndState 1.0 DndState.qml
+singleton AirplaneModeState 1.0 AirplaneModeState.qml
 singleton WeatherService 1.0 WeatherService.qml
-singleton PowerProfileState 1.0 PowerProfileState.qml
 singleton ThemeConfig 1.0 ThemeConfig.qml
 singleton DefaultsConfig 1.0 DefaultsConfig.qml
 singleton DateTimeConfig 1.0 DateTimeConfig.qml
@@ -85,6 +85,7 @@ NListView 1.0 NListView.qml
 NGridView 1.0 NGridView.qml
 StayAwake 1.0 StayAwake.qml
 Dnd 1.0 Dnd.qml
+AirplaneMode 1.0 AirplaneMode.qml
 NetworkToggle 1.0 NetworkToggle.qml
 WifiToggle 1.0 WifiToggle.qml
 NightLight 1.0 NightLight.qml

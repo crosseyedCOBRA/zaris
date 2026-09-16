@@ -51,6 +51,16 @@ Row {
             required property string modelData
             width: loader.item ? loader.item.implicitWidth : 0
             height: loader.item ? loader.item.implicitHeight : 0
+            // Row only manages its children's x position, not y - every
+            // module delegate was defaulting to top-aligned (y: 0) within
+            // the Row's own cross-axis instead, unlike SystemTrayRow just
+            // above (which already anchors.verticalCenters itself for
+            // exactly this reason). Different modules' differing
+            // implicitHeight left them sitting at visibly different
+            // heights relative to the tray icons and each other -
+            // reported live as "the system tray and the icon to launch
+            // Control Center, the modules are off alignment."
+            anchors.verticalCenter: parent.verticalCenter
 
             Loader {
                 id: loader

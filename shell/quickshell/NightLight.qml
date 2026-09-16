@@ -20,6 +20,8 @@ Item {
     property color textColor: "white"
     property color activeColor: "white"
     property bool clickable: true
+    // Overridable - see NetworkToggle.qml's own pointSize comment.
+    property real pointSize: Style.fontSizeL
 
     function toggle() {
         NightLightState.active = !NightLightState.active
@@ -30,24 +32,17 @@ Item {
         }
     }
 
-    implicitWidth: rowLayout.implicitWidth
-    implicitHeight: rowLayout.implicitHeight
+    implicitWidth: icon.implicitWidth
+    implicitHeight: icon.implicitHeight
 
-    Row {
-        id: rowLayout
-        spacing: 4
-
-        NText {
-            text: ""
-            color: NightLightState.active ? root.activeColor : root.textColor
-            pointSize: Style.fontSizeL
-        }
-
-        NText {
-            text: NightLightState.active ? "night" : ""
-            color: root.activeColor
-            pointSize: Style.fontSizeL
-        }
+    // One fixed glyph, color-only state (was also swapping in a "night"
+    // text label alongside the icon while active) - same simplification
+    // as Dnd.qml/StayAwake.qml, per explicit request.
+    NText {
+        id: icon
+        text: ""
+        color: NightLightState.active ? root.activeColor : root.textColor
+        pointSize: root.pointSize
     }
 
     MouseArea {

@@ -24,6 +24,8 @@ Item {
     property color textColor: "white"
     property color activeColor: "white"
     property bool clickable: true
+    // Overridable - see NetworkToggle.qml's own pointSize comment.
+    property real pointSize: Style.fontSizeL
 
     function toggle() {
         StayAwakeState.awake = !StayAwakeState.awake
@@ -34,24 +36,18 @@ Item {
         }
     }
 
-    implicitWidth: rowLayout.implicitWidth
-    implicitHeight: rowLayout.implicitHeight
+    implicitWidth: icon.implicitWidth
+    implicitHeight: icon.implicitHeight
 
-    Row {
-        id: rowLayout
-        spacing: 4
-
-        NText {
-            text: ""
-            color: StayAwakeState.awake ? root.activeColor : root.textColor
-            pointSize: Style.fontSizeL
-        }
-
-        NText {
-            text: StayAwakeState.awake ? "awake" : ""
-            color: root.activeColor
-            pointSize: Style.fontSizeL
-        }
+    // One fixed coffee-cup glyph, color-only state (was also swapping in
+    // an "awake" text label alongside the icon while active) - same
+    // simplification as Dnd.qml, per explicit request ("it doesn't need
+    // to say awake, it can just change color").
+    NText {
+        id: icon
+        text: ""
+        color: StayAwakeState.awake ? root.activeColor : root.textColor
+        pointSize: root.pointSize
     }
 
     MouseArea {

@@ -7,9 +7,27 @@
 # stopping the Process, not by this script exiting on its own).
 #
 # 8kHz mono is plenty for a level meter (not attempting frequency
-# analysis, just amplitude) and keeps CPU cost low. CHUNK=800 bytes =
-# 400 samples at s16le = 50ms per line, a ~20Hz update rate - fast
+# analysis, just amplitude) and keeps CPU cost low. CHUNK=320 bytes =
+# 160 samples at s16le = 20ms per line, a 50Hz update rate - fast
 # enough to look live, slow enough not to spam Quickshell with updates.
+# (Was 800 bytes/50ms/20Hz - reported live as "the visualizer seems very
+# laggy"; --latency-msec below turned out to be the bigger factor, but a
+# smaller chunk shaves a further ~30ms off the worst-case per-sample
+# delay on top of that.)
+#
+# --latency-msec=20: parec's default target latency (unset) lets
+# PipeWire's own Pulse-compatibility layer pick one, which measured
+# live at several hundred ms of internal buffering on this machine -
+# the actual dominant source of the reported lag, not the chunking
+# above (50ms was already a fast nominal rate; the real delay was
+# between a sound actually starting and parec's first byte of it
+# reaching this pipe at all). Explicitly forcing a low target latency
+# cuts that buffering down to what a level meter actually needs -
+# some extra CPU wakeups in exchange for much lower end-to-end delay,
+# an easy trade for a module that isn't running at all unless a user
+# opted into it (see this file's own module - AudioVisualizer.qml -
+# already being off by default in modules.json for its continuous
+# capture cost).
 #
 # --client-name/--stream-name: PipeWire has no separate "media class" for
 # a monitor-loopback capture vs a real microphone capture - both show up
@@ -21,11 +39,12 @@
 set -eu
 
 exec parec --raw --format=s16le --rate=8000 --channels=1 -d @DEFAULT_MONITOR@ \
+    --latency-msec=20 \
     --client-name=zaris-audio-visualizer --stream-name=zaris-audio-visualizer \
     | python3 -c '
 import sys, struct, math
 
-CHUNK = 800  # bytes = 400 samples at s16le = 50ms at 8kHz
+CHUNK = 320  # bytes = 160 samples at s16le = 20ms at 8kHz
 
 while True:
     data = sys.stdin.buffer.read(CHUNK)

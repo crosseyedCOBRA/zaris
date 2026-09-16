@@ -26,6 +26,11 @@ Item {
     property color colorBorder: Colors.mOutline
     property color colorBorderHover: Colors.mOutline
     property real customRadius: -1 // -1 means use default (iRadiusL), otherwise use this value
+    // -1 means use the default formula (Style.toOdd(buttonSize * 0.48)),
+    // otherwise use this exact point size - added for Control Center's
+    // quick-access row, where the default formula's icons were reported
+    // live as sitting too close to the buttons' own circular border.
+    property real customIconPointSize: -1
 
     // Manual per-instance nudge, in pixels, for a specific glyph's own
     // real ink-vs-layout-box asymmetry - defaults to 0 (no change) for
@@ -113,7 +118,7 @@ Item {
             anchors.topMargin: root.iconOffsetY
             anchors.bottomMargin: -root.iconOffsetY
             icon: root.icon
-            pointSize: Style.toOdd(visualButton.width * 0.48)
+            pointSize: root.customIconPointSize > 0 ? root.customIconPointSize : Style.toOdd(visualButton.width * 0.48)
             color: root.enabled && root.hovering ? colorFgHover : colorFg
 
             Behavior on color {

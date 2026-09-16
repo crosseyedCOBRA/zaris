@@ -71,22 +71,31 @@ Column {
         return days
     }
 
-    Row {
+    // Item rather than Row - a Row positions every child's x itself,
+    // which fights with anchors.centerIn below (both trying to own x).
+    // The month/year label now truly centers in the full row width
+    // regardless of the two buttons' exact rendered size, rather than
+    // the previous `width: parent.width - 66` guess (NIconButton's real
+    // width is Style.toOdd(baseSize), 23px at baseSize 22, not exactly
+    // 22 - two of those plus this box's own width left the label subtly
+    // off-center) - reported live as wanting everything in this widget
+    // centered.
+    Item {
         width: parent.width
         height: 24
 
         NIconButton {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
             icon: ""
             baseSize: 22
             tooltipText: "Previous month"
-            anchors.verticalCenter: parent.verticalCenter
             onClicked: root.goToPreviousMonth()
         }
 
         NText {
-            width: parent.width - 66
+            anchors.centerIn: parent
             horizontalAlignment: Text.AlignHCenter
-            anchors.verticalCenter: parent.verticalCenter
             text: Qt.locale().monthName(root.viewMonth, Locale.LongFormat) + " " + root.viewYear
             pointSize: Style.fontSizeM
             font.weight: Style.fontWeightBold
@@ -94,10 +103,11 @@ Column {
         }
 
         NIconButton {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
             icon: ""
             baseSize: 22
             tooltipText: "Next month"
-            anchors.verticalCenter: parent.verticalCenter
             onClicked: root.goToNextMonth()
         }
     }

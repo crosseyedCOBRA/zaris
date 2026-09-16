@@ -62,37 +62,6 @@ QtObject {
     // to a bar section would silently render nothing.
     readonly property var barModuleIds: root.moduleIds.filter(function (id) { return id !== "mediaPlayer" })
 
-    // The subset Settings' new "Control Center" tab lets you add/reorder -
-    // every module in Control Center's main quick-toggle grid, which
-    // renders as the same uniform tile shape (a Column: icon or toggle
-    // component, then a label, with a MouseArea over the whole tile) -
-    // checked each one's actual QML shape and grid membership directly
-    // rather than assumed, since a couple (stayAwake, nightLight) default
-    // to hidden (inControlCenter: false) and were easy to miss at a glance.
-    // Deliberately excludes: wallpaper (a uniform tile shape too, but
-    // lives in a second, visually separate Grid alongside the
-    // Screenshot tile - which has no modules.json entry at all - rather
-    // than this main one; interleaving it into this list would break
-    // that deliberate two-grid grouping), kernel/cpu/cpuTemp/gpuTemp/
-    // battery (gauges/a text line, a different fixed layout block
-    // entirely), volume (the Audio section, sliders not a toggle tile),
-    // and mediaPlayer (the media card) - none of those are interchangeable
-    // same-shaped chips the way these six are, so a generic reorder
-    // wouldn't correctly relocate them in Control Center's actual layout.
-    // "dnd" was here too until its tile was removed from Control Center
-    // entirely (its toggle moved onto the bar's notification bell icon
-    // instead, right-click - see NotificationIndicator.qml's own header
-    // comment) - it's still a real bar module (Dnd.qml), just no longer a
-    // Control Center one. The power-profile tile has no modules.json
-    // entry either and stays fixed first in this grid, with Battery now
-    // fixed second (opens Settings' Battery tab on click rather than
-    // toggling anything, so it isn't part of this reorderable set either -
-    // see ControlCenter.qml's own comment) - regardless of how these six
-    // are arranged. A real reorderable surface for the excluded set needs
-    // the separate, not-yet-designed Control Center layout work (see
-    // ROADMAP.md's own still-open items for that).
-    readonly property var controlCenterModuleIds: ["stayAwake", "nightLight", "network", "wifi", "clipboard", "bluetooth"]
-
     property FileView configFile: FileView {
         path: Quickshell.env("HOME") + "/.config/quickshell/modules.json"
         watchChanges: true
@@ -298,13 +267,6 @@ QtObject {
         return root._sortedByOrder(ids)
     }
 
-    // Control Center's reorderable toggle-tile subset (controlCenterModuleIds),
-    // shown in Control Center and enabled, in configured order.
-    function orderedControlCenterModules(panel) {
-        const ids = root.controlCenterModuleIds.filter(function (id) { return root.showInControlCenter(id, panel) })
-        return root._sortedByOrder(ids)
-    }
-
     // Settings' own Bar Modules tab isn't rendering one specific monitor's
     // bar - it's editing the underlying assignment, so (unlike
     // orderedBarModules above, which Bar.qml itself calls per-panel) this
@@ -331,23 +293,6 @@ QtObject {
         return ids
     }
 
-    // Control Center tab equivalent - ignores the `panel` param
-    // orderedControlCenterModules needs (showInControlCenter doesn't actually use it, but
-    // keeping a distinctly-named function here for symmetry/clarity with
-    // barModulesForSettings above, and so a future showInControlCenter change that
-    // does start using panel doesn't quietly change Settings' own listing).
-    function controlCenterModulesForSettings() {
-        const ids = root.controlCenterModuleIds.filter(function (id) { return root._entry(id).enabled !== false && !!root._entry(id).inControlCenter })
-        return root._sortedByOrder(ids)
-    }
-
-    function controlCenterModulesAvailableToAdd() {
-        return root.controlCenterModuleIds.filter(function (id) {
-            const e = root._entry(id)
-            return e.enabled === false || !e.inControlCenter
-        })
-    }
-
     // Setters used by Settings.qml. Each does a full reassignment of the
     // entry (not an in-place mutation of the nested object) - QML only
     // notices property *assignment*, so `configFile.adapter[id].enabled =
@@ -355,11 +300,6 @@ QtObject {
     function setEnabled(id, val) {
         const cur = root._entry(id)
         configFile.adapter[id] = Object.assign({}, cur, { enabled: val })
-    }
-
-    function setInControlCenter(id, val) {
-        const cur = root._entry(id)
-        configFile.adapter[id] = Object.assign({}, cur, { inControlCenter: val })
     }
 
     function setScreens(id, val) {
@@ -395,15 +335,6 @@ QtObject {
         }
     }
 
-    // Same idea for Control Center's flat (unsectioned) reorderable list.
-    function reorderControlCenterModules(orderedIds) {
-        for (let i = 0; i < orderedIds.length; i++) {
-            const id = orderedIds[i]
-            const cur = root._entry(id)
-            configFile.adapter[id] = Object.assign({}, cur, { order: i })
-        }
-    }
-
     // "Add a widget" dropdown actions - append the module to the end of
     // its new destination's current order rather than leaving whatever
     // order value it had from the last time it was placed somewhere.
@@ -422,15 +353,6 @@ QtObject {
         root.setEnabled(id, false)
     }
 
-    function addToControlCenter(id) {
-        const existing = root.controlCenterModulesForSettings()
-        const cur = root._entry(id)
-        configFile.adapter[id] = Object.assign({}, cur, { enabled: true, inControlCenter: true, order: existing.length })
-    }
-
-    function removeFromControlCenter(id) {
-        root.setEnabled(id, false)
-    }
 
     function setCcGaugeCpu(val) { configFile.adapter.ccGaugeCpu = val }
     function setCcGaugeCpuTemp(val) { configFile.adapter.ccGaugeCpuTemp = val }

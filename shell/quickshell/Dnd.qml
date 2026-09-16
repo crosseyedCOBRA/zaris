@@ -21,29 +21,29 @@ Item {
     property color textColor: "white"
     property color activeColor: "white"
     property bool clickable: true
+    // Overridable - see NetworkToggle.qml's own pointSize comment.
+    property real pointSize: Style.fontSizeL
 
     function toggle() {
         DndState.toggle()
     }
 
-    implicitWidth: rowLayout.implicitWidth
-    implicitHeight: rowLayout.implicitHeight
+    implicitWidth: icon.implicitWidth
+    implicitHeight: icon.implicitHeight
 
-    Row {
-        id: rowLayout
-        spacing: 4
-
-        NText {
-            text: DndState.paused ? "" : ""
-            color: DndState.paused ? root.activeColor : root.textColor
-            pointSize: Style.fontSizeL
-        }
-
-        NText {
-            text: DndState.paused ? "dnd" : ""
-            color: root.activeColor
-            pointSize: Style.fontSizeL
-        }
+    // One fixed "bell with a line through it" glyph (fa-bell_slash,
+    // already a real Do Not Disturb icon on its own) rather than
+    // swapping between a plain bell and this one by state - state now
+    // reads purely from color instead, same as every other toggle in
+    // this row. Also used to swap in a "dnd" text label alongside the
+    // icon while paused - removed per explicit request ("when turned
+    // on, lets just change the color of the icon instead of writing
+    // something out").
+    NText {
+        id: icon
+        text: ""
+        color: DndState.paused ? root.activeColor : root.textColor
+        pointSize: root.pointSize
     }
 
     MouseArea {

@@ -28,6 +28,8 @@ Item {
     // false, so its full-tile click keeps toggling exactly as before.
     property bool settingsShortcut: false
     property Item barSurfaceItem: null
+    // Overridable - see NetworkToggle.qml's own pointSize comment.
+    property real pointSize: Style.fontSizeL
 
     implicitWidth: icon.implicitWidth
     implicitHeight: icon.implicitHeight
@@ -41,7 +43,7 @@ Item {
         id: icon
         text: ""
         color: root.radioEnabled ? root.activeColor : root.textColor
-        pointSize: Style.fontSizeL
+        pointSize: root.pointSize
     }
 
     MouseArea {

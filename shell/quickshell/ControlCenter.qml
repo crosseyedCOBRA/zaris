@@ -105,7 +105,11 @@ PopupWindow {
     // - a cleaner match for Noctalia's own reference screenshot, which has
     // visible padding and a bit of background definition around its
     // Control Center rather than content running edge-to-edge.
-    implicitWidth: 440
+    // Was 440 - widened a bit per explicit request ("a bit wider"),
+    // extra room going into this panel's own outer side padding rather
+    // than contentWidth (below) so the fixed-width media/gauges cards
+    // don't end up with a stretched, oddly wide gap between them.
+    implicitWidth: 460
     // Was 875 (tuned for the old toggle grid's large labeled 2-column
     // tiles - see that section's own history for why it needed that much).
     // Recalibrated down to 660 once the toggle grid became two compact
@@ -115,15 +119,22 @@ PopupWindow {
     // own bottom edge below the last real content (confirmed via direct
     // pixel sampling down the panel's background: real content ended
     // around 560px into the panel, nearly 300px short of the old fixed
-    // 875). 660 leaves a real, deliberate margin above that measured
+    // 875). 660 left a real, deliberate margin above that measured
     // content height instead of matching it exactly - still "fixed, sized
     // generously for the tallest real state" per this property's own
     // long-standing reasoning above, just recalibrated for the new
     // layout rather than carrying the old one's number forward
-    // unexamined. Verified live afterward with every optional section
-    // visible at once (media + visualizer + full gauges + audio sliders +
-    // 6-day forecast) - no clipping.
-    implicitHeight: 660
+    // unexamined.
+    //
+    // Bumped up again to 740 - the four new offset-background cards
+    // added since (profile header, the quick-access button row, Now
+    // Playing, the gauges) each added their own +24px of padding on top
+    // of the content they wrap, growing this panel's real total content
+    // height meaningfully beyond what 660 was tuned for - reported live
+    // as needing "a bit taller." Same "generous fixed size, no scrolling"
+    // reasoning as before, not a return to the old 875 (nothing here
+    // needs nearly that much).
+    implicitHeight: 740
 
     anchor.item: ControlCenterState.barItem
     anchor.rect.x: ControlCenterState.barItem ? ControlCenterState.barItem.width - implicitWidth : 0
@@ -191,8 +202,20 @@ PopupWindow {
     Rectangle {
         anchors.fill: parent
         color: Colors.bg
+        // 10, matching zaris.conf's own `rounding=10` - per explicit
+        // request to have this panel's own rounding match the config
+        // file's value rather than the smaller Style.radiusS its inner
+        // cards use.
+        radius: 10
         border.width: 1
-        border.color: Colors.pill
+        // ThemeConfig.borderAccent - the same active-border accent color
+        // the WM itself applies to focused window borders (col.
+        // active_border in zaris.conf, kept in sync with this by
+        // ThemeConfig's own regex-backed setter) - was Colors.pill (a
+        // neutral surface tone, not really a border accent at all) per
+        // explicit request to have this border "match the color palette
+        // in use."
+        border.color: ThemeConfig.borderAccent
 
         Column {
             id: content
@@ -208,17 +231,30 @@ PopupWindow {
             // other").
             spacing: 14
 
-            Item {
+            // Profile header - its own offset-background card now,
+            // matching every other section below (status/audio, the
+            // quick-access buttons, weather, media, gauges) instead of
+            // being the one remaining bare row sitting directly on the
+            // panel's own background - per explicit request to give this
+            // section the same treatment.
+            Rectangle {
                 width: root.contentWidth
-                height: 44
+                height: 44 + 24
+                radius: Style.radiusS
+                color: Colors.pill
 
-                Row {
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                Item {
+                    anchors.centerIn: parent
+                    width: parent.width - 24
+                    height: 44
 
-                    Item {
-                        id: avatar
+                    Row {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 10
+
+                        Item {
+                            id: avatar
                         width: 44
                         height: 44
                         anchors.verticalCenter: parent.verticalCenter
@@ -269,11 +305,32 @@ PopupWindow {
                             visible: faceImage.status === Image.Ready
                         }
 
+                        // Fallback logo - the asset itself is a square PNG
+                        // (an opaque black square with the circular logo
+                        // mark drawn in the middle, not a transparent-
+                        // cornered circle), so it needs the exact same
+                        // circular mask as the real-photo path above rather
+                        // than rendering unmasked - reported live as "the
+                        // profile picture looks like an odd square" (the
+                        // asset's own square corners showing through
+                        // whenever no real ~/.face exists, the actual
+                        // default state on a fresh install).
                         Image {
-                            anchors.fill: parent
+                            id: fallbackLogo
                             source: "file://" + Quickshell.env("HOME") + "/.config/quickshell/assets/zaris-logo-circle.png"
+                            width: avatar.width
+                            height: avatar.height
+                            visible: false
+                            fillMode: Image.PreserveAspectCrop
+                            layer.enabled: true
+                        }
+
+                        MultiEffect {
+                            anchors.fill: parent
+                            source: fallbackLogo
+                            maskEnabled: true
+                            maskSource: avatarMask
                             visible: faceImage.status !== Image.Ready
-                            fillMode: Image.PreserveAspectFit
                         }
                     }
 
@@ -386,6 +443,7 @@ PopupWindow {
                         onClicked: ControlCenterState.visible = false
                     }
                 }
+            }
             }
 
             // Running kernel version - its own small, always-visible
@@ -592,285 +650,339 @@ PopupWindow {
                 }
             }
 
-            // Restructured from one continuous 2-column grid of large
-            // labeled tiles into two compact, icon-only pill groups side by
-            // side - matching Noctalia v5's own Control Center reference
-            // (supplied live) far more closely than the old grid did, and
-            // considerably more compact besides. Labels are gone in favor
-            // of tooltips (TooltipService, same mechanism NIconButton
-            // itself already uses) - a quick glance no longer needs six-plus
-            // lines of small caption text competing with the icons for
-            // attention. Two fixed pills rather than a variable-count wrap:
-            // "System" (Power Profile, Battery, Stay Awake, Night Light) and
-            // "Connectivity" (Ethernet, Wifi, Clipboard, Bluetooth) - a
-            // stable category split independent of whatever order the user
-            // has actually dragged the reorderable four into via Settings'
-            // Control Center tab, each icon still individually visible/
-            // hidden exactly as before.
-            Item {
+            // Individual, always-visible circular buttons (matching the
+            // header's Settings/Power/Close button look - plain
+            // NIconButton defaults, a real filled pill background rather
+            // than the old shared-pill-with-transparent-icons grouping)
+            // rather than grouped pill containers - per explicit request
+            // ("actual individual buttons similar to the settings, power,
+            // close at the top"), in this left-to-right order: Ethernet,
+            // Wifi, Wallpaper, Battery, Notifications, Screenshot, Night
+            // Light, Stay Awake, Clipboard. Airplane Mode and Power
+            // Profile were both here too at one point - Airplane Mode
+            // moved to its own spot atop NetworkPanel.qml's flyout
+            // instead (redundant sitting right next to Ethernet/Wifi,
+            // which already toggle individually - a better fit grouped
+            // with the rest of that panel's own network controls), and
+            // Power Profile was dropped entirely (power-profiles-daemon
+            // isn't installed on this machine, so it never did anything
+            // real here) - both per explicit request. Every remaining
+            // button here is unconditionally visible -
+            // the Settings tab that used to gate a few of them
+            // (Ethernet/Wifi/Night Light/Clipboard's old inControlCenter
+            // flag) has been removed entirely, since toggling a module
+            // off there had started silently hiding it from this fixed,
+            // non-reorderable row - a confusing interaction once the row
+            // stopped being reorderable at all (see Settings.qml's own
+            // General tab for where that tab's still-relevant gauge
+            // toggles moved to).
+            //
+            // Its own offset-background card too now, matching every
+            // other section (same Colors.pill treatment as the status/
+            // audio card and the weather card) - per explicit request to
+            // give the "Quick Access" row the same background as
+            // everything else, instead of sitting bare on the panel.
+            Rectangle {
                 width: root.contentWidth
-                height: Math.max(systemPill.height, connectivityPill.height, actionsPill.height)
+                height: 34 + 24
+                radius: Style.radiusS
+                color: Colors.pill
 
                 Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 10
+                    anchors.centerIn: parent
+                    spacing: 8
 
-                    Rectangle {
-                        id: systemPill
-                        width: systemRow.implicitWidth + 16
-                        height: systemRow.implicitHeight + 16
-                        radius: height / 2
-                        color: Colors.pill
+                    // Ethernet - toggle-driven (nmcli), so it keeps the
+                    // Loader/Component pattern rather than a plain
+                    // NIconButton (its glyph/color depend on live
+                    // connection state) - but the wrapper's own background
+                    // is now always Colors.pill/pillActive (a real button)
+                    // instead of transparent-until-hovered, matching every
+                    // other button in this row.
+                    Item {
+                        id: networkTile
+                        width: 34
+                        height: 34
+                        clip: true
 
-                        Row {
-                            id: systemRow
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: networkTileArea.containsMouse ? Colors.pillActive : Colors.pill
+                            border.width: Style.borderS
+                            border.color: Colors.textMuted
+                            Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                        }
+
+                        Loader {
+                            id: networkLoader
                             anchors.centerIn: parent
-                            spacing: 2
+                            sourceComponent: networkIconComponent
+                        }
 
-                            // Power profile - cycles through the three
-                            // power-profiles-daemon profiles on each click
-                            // (see PowerProfileState.qml's own header
-                            // comment for why this is safe to ship even
-                            // though that daemon isn't installed on this
-                            // machine yet).
-                            NIconButton {
-                                baseSize: 34
-                                tooltipText: "Power Profile: " + PowerProfileState.profileLabel(PowerProfileState.currentProfile)
-                                colorBg: "transparent"
-                                colorBorder: "transparent"
-                                colorFg: Colors.textMuted
-                                colorFgHover: Colors.text
-                                colorBgHover: Colors.pillActive
-                                // Same measured ~6px rightward ink offset on
-                                // the "balance-scale" glyph this tile always
-                                // shows in practice (power-profiles-daemon
-                                // isn't installed here) as the old tile's own
-                                // NIcon carried - see this file's earlier
-                                // history for how that offset was measured.
-                                iconOffsetX: (PowerProfileState.currentProfile !== "power-saver" && PowerProfileState.currentProfile !== "performance") ? -6 : 0
-                                icon: PowerProfileState.profileIcon(PowerProfileState.currentProfile)
-                                onClicked: PowerProfileState.cycleProfile()
+                        MouseArea {
+                            id: networkTileArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                TooltipService.hide(networkTile)
+                                if (networkLoader.item && networkLoader.item.toggle)
+                                    networkLoader.item.toggle()
                             }
-
-                            // Battery - navigates to Settings' Battery tab,
-                            // same as the old tile (it isn't a toggle,
-                            // there's nothing to switch on/off). Battery's
-                            // own gauge in the CPU/temp/RAM cluster further
-                            // down this file is untouched.
-                            NIconButton {
-                                baseSize: 34
-                                visible: BatteryService.batteryPresent
-                                tooltipText: "Battery"
-                                colorBg: "transparent"
-                                colorBorder: "transparent"
-                                colorFg: Colors.textMuted
-                                colorFgHover: Colors.text
-                                colorBgHover: Colors.pillActive
-                                icon: BatteryService.batteryIcon
-                                onClicked: {
-                                    SettingsState.requestedCategory = "battery"
-                                    SettingsState.targetItem = ControlCenterState.barItem
-                                    // Close-before-open, same fix and same
-                                    // reason as the Settings gear button
-                                    // above.
-                                    ControlCenterState.visible = false
-                                    SettingsState.visible = true
-                                }
-                            }
-
-                            Repeater {
-                                model: ModulesConfig.orderedControlCenterModules(ControlCenterState.panel).filter(function (id) { return id === "stayAwake" || id === "nightLight" })
-
-                                Item {
-                                    id: systemTileDelegate
-                                    required property string modelData
-                                    width: 34
-                                    height: 34
-                                    clip: true // hides the loaded component's own conditional state-text ("awake"/"night") - see this section's header comment on why these are icon-only now
-
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: width / 2
-                                        color: systemTileArea.containsMouse ? Colors.pillActive : "transparent"
-                                        Behavior on color { ColorAnimation { duration: Style.animationFast } }
-                                    }
-
-                                    Loader {
-                                        id: systemIconLoader
-                                        anchors.centerIn: parent
-                                        sourceComponent: {
-                                            switch (systemTileDelegate.modelData) {
-                                            case "stayAwake": return stayAwakeIconComponent
-                                            case "nightLight": return nightLightIconComponent
-                                            default: return null
-                                            }
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: systemTileArea
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        onClicked: {
-                                            TooltipService.hide(systemTileDelegate)
-                                            if (systemIconLoader.item && systemIconLoader.item.toggle)
-                                                systemIconLoader.item.toggle()
-                                        }
-                                        onEntered: TooltipService.show(systemTileDelegate, systemTileDelegate.modelData === "stayAwake" ? "Stay Awake" : "Night Light", "auto")
-                                        onExited: TooltipService.hide(systemTileDelegate)
-                                    }
-                                }
-                            }
+                            onEntered: TooltipService.show(networkTile, "Ethernet", "auto")
+                            onExited: TooltipService.hide(networkTile)
                         }
                     }
 
-                    Rectangle {
-                        id: connectivityPill
-                        width: connectivityRow.implicitWidth + 16
-                        height: connectivityRow.implicitHeight + 16
-                        radius: height / 2
-                        color: Colors.pill
-                        visible: connectivityRow.implicitWidth > 0
+                    // Wifi - same toggle-driven pattern as Ethernet above.
+                    Item {
+                        id: wifiTile
+                        width: 34
+                        height: 34
+                        clip: true
 
-                        Row {
-                            id: connectivityRow
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: wifiTileArea.containsMouse ? Colors.pillActive : Colors.pill
+                            border.width: Style.borderS
+                            border.color: Colors.textMuted
+                            Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                        }
+
+                        Loader {
+                            id: wifiLoader
                             anchors.centerIn: parent
-                            spacing: 2
+                            sourceComponent: wifiIconComponent
+                        }
 
-                            Repeater {
-                                model: ModulesConfig.orderedControlCenterModules(ControlCenterState.panel).filter(function (id) { return id === "network" || id === "wifi" || id === "clipboard" || id === "bluetooth" })
-
-                                Item {
-                                    id: connTileDelegate
-                                    required property string modelData
-                                    width: 34
-                                    height: 34
-                                    clip: true
-
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: width / 2
-                                        color: connTileArea.containsMouse ? Colors.pillActive : "transparent"
-                                        Behavior on color { ColorAnimation { duration: Style.animationFast } }
-                                    }
-
-                                    Loader {
-                                        id: connIconLoader
-                                        anchors.centerIn: parent
-                                        sourceComponent: {
-                                            switch (connTileDelegate.modelData) {
-                                            case "network": return networkIconComponent
-                                            case "wifi": return wifiIconComponent
-                                            case "clipboard": return clipboardIconComponent
-                                            case "bluetooth": return bluetoothIconComponent
-                                            default: return null
-                                            }
-                                        }
-                                    }
-
-                                    MouseArea {
-                                        id: connTileArea
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        onClicked: {
-                                            TooltipService.hide(connTileDelegate)
-                                            if (connTileDelegate.modelData === "clipboard")
-                                                ClipboardHistoryPanelState.visible = !ClipboardHistoryPanelState.visible
-                                            else if (connIconLoader.item && connIconLoader.item.toggle)
-                                                connIconLoader.item.toggle()
-                                        }
-                                        onEntered: {
-                                            const labels = { network: "Ethernet", wifi: "Wifi", clipboard: "Clipboard", bluetooth: "Bluetooth" }
-                                            TooltipService.show(connTileDelegate, labels[connTileDelegate.modelData] || "", "auto")
-                                        }
-                                        onExited: TooltipService.hide(connTileDelegate)
-                                    }
-                                }
+                        MouseArea {
+                            id: wifiTileArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                TooltipService.hide(wifiTile)
+                                if (wifiLoader.item && wifiLoader.item.toggle)
+                                    wifiLoader.item.toggle()
                             }
+                            onEntered: TooltipService.show(wifiTile, "Wifi", "auto")
+                            onExited: TooltipService.hide(wifiTile)
                         }
                     }
 
-                    // Actions - Wallpaper/Screenshot, folded in from their
-                    // old standalone "quick-launch grid" (two large labeled
-                    // tiles below the toggle pills) onto this same row, per
-                    // explicit request to keep them "on the same line with
-                    // power-profiles, network, etc." rather than reading as
-                    // a separate section. Plain NIconButtons, not the
-                    // Loader/Component pattern the toggle pills above use -
-                    // these are one-off actions with no on/off state to
-                    // reflect, no polymorphic toggle() needed.
-                    Rectangle {
-                        id: actionsPill
-                        width: actionsRow.implicitWidth + 16
-                        height: actionsRow.implicitHeight + 16
-                        radius: height / 2
-                        color: Colors.pill
+                    // Wallpaper - a one-off action (opens the wallpaper
+                    // picker), no on/off state to reflect, so it's a plain
+                    // NIconButton using its own theme-driven defaults
+                    // (colorBg: Colors.mSurfaceVariant/pill, colorFg:
+                    // Colors.mPrimary, colorBgHover: Colors.mHover/
+                    // pillActive) - the exact same look the header's
+                    // Settings/Power/Close buttons already use, just at
+                    // this row's larger 34px size.
+                    NIconButton {
+                        baseSize: 34
+                        customIconPointSize: 15
+                        tooltipText: "Wallpaper"
+                        icon: ""
+                        onClicked: WallpaperPickerPanelState.visible = !WallpaperPickerPanelState.visible
+                    }
 
-                        Row {
-                            id: actionsRow
-                            anchors.centerIn: parent
-                            spacing: 2
-
-                            NIconButton {
-                                baseSize: 34
-                                visible: ModulesConfig.showInControlCenter("wallpaper", ControlCenterState.panel)
-                                tooltipText: "Wallpaper"
-                                colorBg: "transparent"
-                                colorBorder: "transparent"
-                                colorFg: Colors.textMuted
-                                colorFgHover: Colors.text
-                                colorBgHover: Colors.pillActive
-                                icon: ""
-                                onClicked: WallpaperPickerPanelState.visible = !WallpaperPickerPanelState.visible
-                            }
-
-                            NIconButton {
-                                baseSize: 34
-                                tooltipText: "Screenshot (right-click: full screen)"
-                                colorBg: "transparent"
-                                colorBorder: "transparent"
-                                colorFg: Colors.textMuted
-                                colorFgHover: Colors.text
-                                colorBgHover: Colors.pillActive
-                                icon: ""
-                                onClicked: {
-                                    const script = Quickshell.env("HOME") + "/.config/zaris/screenshot.sh"
-                                    Quickshell.execDetached([script, "region", DefaultsConfig.screenshotFolder])
-                                }
-                                onRightClicked: {
-                                    const script = Quickshell.env("HOME") + "/.config/zaris/screenshot.sh"
-                                    Quickshell.execDetached([script, "full", DefaultsConfig.screenshotFolder])
-                                }
-                            }
+                    // Battery - navigates to Settings' Battery tab, same
+                    // as before (it isn't a toggle, there's nothing to
+                    // switch on/off).
+                    NIconButton {
+                        baseSize: 34
+                        customIconPointSize: 15
+                        visible: BatteryService.batteryPresent
+                        tooltipText: "Battery"
+                        icon: BatteryService.batteryIcon
+                        // Reported live as visibly off-center to the
+                        // right - the fa-battery-* glyphs (see
+                        // BatteryService.qml's getIcon()) are noticeably
+                        // wider/more asymmetric than most icons in this
+                        // row, the same category of real ink-vs-layout-
+                        // box offset NIconButton's iconOffsetX exists for
+                        // (see its own header comment - the Settings
+                        // gear/Power Profile buttons needed the same fix).
+                        // Was -3 (a first-pass guess) - reported live as
+                        // still needing another 1-1.5px further left.
+                        iconOffsetX: -4.5
+                        onClicked: {
+                            SettingsState.requestedCategory = "battery"
+                            SettingsState.targetItem = ControlCenterState.barItem
+                            ControlCenterState.visible = false
+                            SettingsState.visible = true
                         }
+                    }
+
+                    // Notifications - Do Not Disturb, via dunst
+                    // (Dnd.qml/DndState.qml) - added per explicit request,
+                    // the first Control-Center presence for this toggle
+                    // since it moved onto the bar's own notification bell
+                    // icon (see ModulesConfig.qml's own comment on that
+                    // move) - both now expose the same toggle independently.
+                    Item {
+                        id: dndTile
+                        width: 34
+                        height: 34
+                        clip: true
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: dndTileArea.containsMouse ? Colors.pillActive : Colors.pill
+                            border.width: Style.borderS
+                            border.color: Colors.textMuted
+                            Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                        }
+
+                        Loader {
+                            id: dndLoader
+                            anchors.centerIn: parent
+                            sourceComponent: dndIconComponent
+                        }
+
+                        MouseArea {
+                            id: dndTileArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                TooltipService.hide(dndTile)
+                                if (dndLoader.item && dndLoader.item.toggle)
+                                    dndLoader.item.toggle()
+                            }
+                            onEntered: TooltipService.show(dndTile, "Notifications", "auto")
+                            onExited: TooltipService.hide(dndTile)
+                        }
+                    }
+
+                    // Screenshot - a one-off action, same as Wallpaper.
+                    NIconButton {
+                        baseSize: 34
+                        customIconPointSize: 15
+                        tooltipText: "Screenshot (right-click: full screen)"
+                        icon: ""
+                        onClicked: {
+                            const script = Quickshell.env("HOME") + "/.config/zaris/screenshot.sh"
+                            Quickshell.execDetached([script, "region", DefaultsConfig.screenshotFolder])
+                        }
+                        onRightClicked: {
+                            const script = Quickshell.env("HOME") + "/.config/zaris/screenshot.sh"
+                            Quickshell.execDetached([script, "full", DefaultsConfig.screenshotFolder])
+                        }
+                    }
+
+                    // Night Light - same toggle-driven pattern as Ethernet/
+                    // Wifi/Notifications above.
+                    Item {
+                        id: nightLightTile
+                        width: 34
+                        height: 34
+                        clip: true
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: nightLightTileArea.containsMouse ? Colors.pillActive : Colors.pill
+                            border.width: Style.borderS
+                            border.color: Colors.textMuted
+                            Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                        }
+
+                        Loader {
+                            id: nightLightLoader
+                            anchors.centerIn: parent
+                            sourceComponent: nightLightIconComponent
+                        }
+
+                        MouseArea {
+                            id: nightLightTileArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                TooltipService.hide(nightLightTile)
+                                if (nightLightLoader.item && nightLightLoader.item.toggle)
+                                    nightLightLoader.item.toggle()
+                            }
+                            onEntered: TooltipService.show(nightLightTile, "Night Light", "auto")
+                            onExited: TooltipService.hide(nightLightTile)
+                        }
+                    }
+
+                    // Stay Awake - same toggle-driven pattern as Ethernet/
+                    // Wifi/Notifications/Night Light above, added per
+                    // explicit request ("lets also add another button
+                    // there for stay awake... have it operate similarly
+                    // to how DND does" - StayAwake.qml's own icon, one
+                    // fixed glyph with color-only state, no text label).
+                    Item {
+                        id: stayAwakeTile
+                        width: 34
+                        height: 34
+                        clip: true
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: stayAwakeTileArea.containsMouse ? Colors.pillActive : Colors.pill
+                            border.width: Style.borderS
+                            border.color: Colors.textMuted
+                            Behavior on color { ColorAnimation { duration: Style.animationFast } }
+                        }
+
+                        Loader {
+                            id: stayAwakeLoader
+                            anchors.centerIn: parent
+                            sourceComponent: stayAwakeIconComponent
+                        }
+
+                        MouseArea {
+                            id: stayAwakeTileArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                TooltipService.hide(stayAwakeTile)
+                                if (stayAwakeLoader.item && stayAwakeLoader.item.toggle)
+                                    stayAwakeLoader.item.toggle()
+                            }
+                            onEntered: TooltipService.show(stayAwakeTile, "Stay Awake", "auto")
+                            onExited: TooltipService.hide(stayAwakeTile)
+                        }
+                    }
+
+                    // Clipboard - opens the clipboard history panel, no
+                    // on/off state to reflect, so it's a plain NIconButton
+                    // like Wallpaper/Screenshot above rather than the
+                    // Loader/toggle() pattern.
+                    NIconButton {
+                        baseSize: 34
+                        customIconPointSize: 15
+                        tooltipText: "Clipboard"
+                        icon: ""
+                        onClicked: ClipboardHistoryPanelState.visible = !ClipboardHistoryPanelState.visible
                     }
                 }
             }
 
-            Component {
-                id: stayAwakeIconComponent
-                StayAwake {
-                    clickable: false
-                    textColor: Colors.textMuted
-                    activeColor: Colors.coral
-                }
-            }
-
-            Component {
-                id: nightLightIconComponent
-                NightLight {
-                    clickable: false
-                    textColor: Colors.textMuted
-                    activeColor: Colors.blue
-                }
-            }
-
+            // pointSize: 15 on all five below - originally 17
+            // (Style.toOdd(34 * 0.48), the same formula NIconButton
+            // itself uses for its icon at this row's baseSize: 34) so
+            // these toggle-driven icons (which don't go through
+            // NIconButton at all, hence no automatic match) matched the
+            // plain-NIconButton icons in this same row (Wallpaper/
+            // Battery/Power Profile/Screenshot/Clipboard) rather than
+            // their bar-module default (Style.fontSizeL, noticeably
+            // smaller). Both sets then trimmed down together to 15 -
+            // reported live as sitting too close to the buttons' own
+            // circular border at 17 - see each plain NIconButton's own
+            // customIconPointSize override below for the other half of
+            // that same shrink.
             Component {
                 id: networkIconComponent
                 NetworkToggle {
                     clickable: false
                     textColor: Colors.textMuted
                     activeColor: Colors.blue
+                    pointSize: 15
                 }
             }
 
@@ -880,26 +992,45 @@ PopupWindow {
                     clickable: false
                     textColor: Colors.textMuted
                     activeColor: Colors.blue
+                    pointSize: 15
                 }
             }
 
             Component {
-                id: clipboardIconComponent
-                NIcon {
-                    icon: ""
-                    color: Colors.textMuted
-                    pointSize: Style.fontSizeXL
-                }
-            }
-
-            Component {
-                id: bluetoothIconComponent
-                BluetoothIndicator {
+                id: nightLightIconComponent
+                NightLight {
                     clickable: false
                     textColor: Colors.textMuted
                     activeColor: Colors.blue
+                    pointSize: 15
                 }
             }
+
+            Component {
+                id: stayAwakeIconComponent
+                StayAwake {
+                    clickable: false
+                    textColor: Colors.textMuted
+                    activeColor: Colors.coral
+                    pointSize: 15
+                }
+            }
+
+            Component {
+                id: dndIconComponent
+                Dnd {
+                    clickable: false
+                    // Primary -> secondary when toggled on, rather than
+                    // this row's usual muted/accent pairing - per
+                    // explicit request ("that icon needs to match the
+                    // color palette... maybe it goes from the primary
+                    // color to secondary when turned on").
+                    textColor: Colors.blue
+                    activeColor: Colors.teal
+                    pointSize: 15
+                }
+            }
+
 
             // Weather - the one piece of the reference screenshot deferred
             // out of the seventh Control Center pass specifically so it
@@ -939,11 +1070,41 @@ PopupWindow {
             // circular readings more to the right."
             Item {
                 width: root.contentWidth
-                height: Math.max(mediaCard.visible ? mediaCard.height : 0, noMediaCard.visible ? noMediaCard.height : 0, gaugesColumn.height)
+                height: Math.max(nowPlayingCard.height, gaugesCard.height)
+
+                // "Now Playing" - its own offset-background card too
+                // (same Colors.pill treatment as every other section),
+                // wrapping both the real media-playing Column below and
+                // its "No Media Playing" placeholder sibling (mutually
+                // exclusive visible: bindings, so only one ever actually
+                // renders inside this shared card at a time) - per
+                // explicit request to give this section the same
+                // background the audio/status and weather cards already
+                // have.
+                Rectangle {
+                    id: nowPlayingCard
+                    anchors.left: parent.left
+                    // Both this card and gaugesCard vertically center
+                    // within their shared parent Item (whose own height
+                    // is the taller of the two) rather than top-aligning
+                    // - reported live as Now Playing needing to "move
+                    // down a little" to line up with the gauges, which
+                    // varied in height (noMediaCard's placeholder state
+                    // is noticeably shorter than the full mediaCard, and
+                    // could be taller or shorter than gaugesCard
+                    // depending on which optional gauges are enabled) so
+                    // a fixed pixel offset wouldn't stay correct across
+                    // every state - centering both against the shared
+                    // parent keeps them aligned regardless.
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 290 + 24
+                    height: (mediaCard.visible ? mediaCard.height : noMediaCard.height) + 24
+                    radius: Style.radiusS
+                    color: Colors.pill
 
                 Column {
                     id: mediaCard
-                    anchors.left: parent.left
+                    anchors.centerIn: parent
                     // Was 230 - widened now that the gauges cluster sits
                     // flush against the panel's own right edge instead of
                     // immediately after this card (see the Item's own
@@ -1106,34 +1267,33 @@ PopupWindow {
                         }
                     }
 
-                    NSlider {
-                        width: parent.width
-                        from: 0
-                        to: 1.0
-                        enabled: MediaService.canSeek
-                        value: MediaService.trackLength > 0 ? Math.min(1, MediaService.currentPosition / MediaService.trackLength) : 0
-                        onMoved: MediaService.seekByRatio(value)
-                    }
-
+                    // Seek slider removed per explicit request - the
+                    // track-position progress bar this drove
+                    // (MediaService.currentPosition/trackLength) wasn't
+                    // wanted here.
                     Row {
                         anchors.horizontalCenter: parent.horizontalCenter
                         spacing: 18
 
+                        // All three transport buttons now share one
+                        // baseSize (was 28/34/28 - Play/Pause sized
+                        // larger than Previous/Next) - reported live as
+                        // needing to "match in size."
                         NIconButton {
-                            baseSize: 28
+                            baseSize: 30
                             icon: ""
                             enabled: MediaService.canGoPrevious
                             onClicked: MediaService.previous()
                         }
 
                         NIconButton {
-                            baseSize: 34
+                            baseSize: 30
                             icon: MediaService.isPlaying ? "" : ""
                             onClicked: MediaService.playPause()
                         }
 
                         NIconButton {
-                            baseSize: 28
+                            baseSize: 30
                             icon: ""
                             enabled: MediaService.canGoNext
                             onClicked: MediaService.next()
@@ -1143,7 +1303,7 @@ PopupWindow {
 
                 Column {
                     id: noMediaCard
-                    anchors.left: parent.left
+                    anchors.centerIn: parent
                     width: 290 // matches mediaCard's own width - see its comment
                     spacing: 8
                     visible: ModulesConfig.showInControlCenter("mediaPlayer", ControlCenterState.panel) && !MediaService.currentPlayer
@@ -1178,12 +1338,29 @@ PopupWindow {
                         }
                     }
                 }
+                }
+
+                // Its own offset-background card too (same Colors.pill
+                // treatment as every other section) - per explicit
+                // request to give the 4 usage/temp gauges the same
+                // background the audio/status and weather cards already
+                // have.
+                Rectangle {
+                    id: gaugesCard
+                    anchors.right: parent.right
+                    // See nowPlayingCard's own comment on why both cards
+                    // vertically center against their shared parent
+                    // rather than top-aligning.
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 38 + 24
+                    height: gaugesColumn.height + 24
+                    radius: Style.radiusS
+                    color: Colors.pill
 
                 Column {
                     id: gaugesColumn
                     spacing: 6
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.centerIn: parent
 
                     NCircularGauge {
                         diameter: 38
@@ -1227,6 +1404,7 @@ PopupWindow {
                         icon: "󰍛"
                         fillColor: Colors.purple
                     }
+                }
                 }
             }
         }

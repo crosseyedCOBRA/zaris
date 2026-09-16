@@ -82,8 +82,18 @@ Item {
                 radius: 1
                 color: root.barColor
 
+                // Was 80ms - noticeably smeared/laggy once audio-levels.sh
+                // itself started reporting a fresh sample every 20ms
+                // instead of every 50ms (see that script's own header for
+                // the real fix, mostly --latency-msec) - a 80ms ease on
+                // top of a 20ms sample rate meant several new samples
+                // could arrive before the previous animation even
+                // finished, reading as sluggish rather than responsive.
+                // 40ms keeps a little smoothing (still nicer than a hard
+                // instant snap) without visibly lagging behind the new
+                // faster sample cadence.
                 Behavior on height {
-                    NumberAnimation { duration: 80 }
+                    NumberAnimation { duration: 40 }
                 }
             }
         }

@@ -96,7 +96,13 @@ Singleton {
     readonly property int animationSlowest: 750
 
     // Delays
-    readonly property int tooltipDelay: 300
+    // Was 300 - bumped to ~1s per explicit request ("show up after a
+    // small delay of maybe 1 second"), also giving a real spurious
+    // exit+enter blip (whatever's causing Control Center's tooltip
+    // flicker) more room to settle before a show sequence even begins -
+    // see Tooltip.qml's own hideDelay comment for the other half of that
+    // fix.
+    readonly property int tooltipDelay: 1000
     readonly property int tooltipDelayLong: 1200
     readonly property int pillDelay: 500
 

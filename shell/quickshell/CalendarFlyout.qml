@@ -37,10 +37,12 @@ PopupWindow {
     color: "transparent"
 
     // Widened from the original 260 to comfortably fit the weather row
-    // added below the calendar grid - implicitHeight stays computed from
-    // body's own implicitHeight, so adding weather grew the window's
-    // height automatically with no hardcoded value to update.
-    implicitWidth: 300
+    // added below the calendar grid, then again from 300, then again
+    // from 340 - each time per explicit request for more breathing room -
+    // implicitHeight stays computed from body's own implicitHeight, so
+    // none of those changes needed a hardcoded height value updated to
+    // match.
+    implicitWidth: 380
     implicitHeight: body.implicitHeight + 20
 
     anchor.item: CalendarFlyoutState.targetItem

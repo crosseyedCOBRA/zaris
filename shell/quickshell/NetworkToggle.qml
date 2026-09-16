@@ -33,6 +33,12 @@ Item {
     property bool clickable: true
     property string interfaceName: ""
     property bool connected: false
+    // Overridable so a caller with a differently-sized icon slot (e.g.
+    // Control Center's 34px circular buttons, matching NIconButton's own
+    // Style.toOdd(baseSize * 0.48) formula) doesn't inherit the bar's
+    // smaller Style.fontSizeL by default - see ControlCenter.qml's own
+    // Component override for the actual value used there.
+    property real pointSize: Style.fontSizeL
 
     implicitWidth: icon.implicitWidth
     implicitHeight: icon.implicitHeight
@@ -46,9 +52,14 @@ Item {
 
     NText {
         id: icon
-        text: ""
+        // Ethernet port glyph (nf-md-ethernet) - matches
+        // NetworkPanelIcon.qml's own bar-side Ethernet icon exactly,
+        // rather than the generic fa-network_wired glyph this used
+        // before (reported live as "not the same one we use in the Bar
+        // widget").
+        text: "󰈀"
         color: root.connected ? root.activeColor : root.textColor
-        pointSize: Style.fontSizeL
+        pointSize: root.pointSize
     }
 
     MouseArea {
