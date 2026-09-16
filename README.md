@@ -14,7 +14,7 @@ undecided.
 
 - Dynamic tiling (dwindle + master layouts)
 - Multi-monitor support, with a global workspace pool
-- An external EWMH-compatible bar/launcher built with [Quickshell](https://quickshell.outfoxxed.me/) — workspaces, clock, system tray, CPU/GPU temperature, network status, volume, a "stay awake" toggle, and a configurable "hidden tray" for modules you don't want always visible
+- An external EWMH-compatible bar/launcher built with [Quickshell](https://quickshell.outfoxxed.me/) — workspaces, clock, system tray, CPU/GPU temperature, network status, volume, a "stay awake" toggle, and a Control Center (quick toggles, media, weather, audio, system stats) for modules you don't want always visible in the bar itself
 - A GUI settings window for the bar's module configuration
 - Idle-based screen lock (`xss-lock` + `i3lock`)
 - Window rules, including `class:`/`role:`/`title:` matching and per-app fullscreen/floating/centering behavior

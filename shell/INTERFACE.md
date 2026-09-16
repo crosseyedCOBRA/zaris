@@ -13,11 +13,14 @@ EWMH-compliant WM) or is called out explicitly as Zaris-specific.
 
 ## Portable today (any EWMH-compliant X11 WM)
 
-- Workspace switching/naming, the taskbar/active-window tracking, and the
-  bar's tray all read standard EWMH properties (`_NET_CURRENT_DESKTOP`,
+- Workspace switching/naming and the taskbar/active-window tracking read
+  standard EWMH properties (`_NET_CURRENT_DESKTOP`,
   `_NET_NUMBER_OF_DESKTOPS`, `_NET_DESKTOP_NAMES`, `_NET_CLIENT_LIST`,
   `_NET_ACTIVE_WINDOW`, `_NET_WM_STRUT_PARTIAL` for the bar's own
-  space reservation) — no Zaris-specific atoms involved.
+  space reservation) — no Zaris-specific atoms involved. (The real system
+  tray, `SystemTrayRow.qml`, is unrelated to any of this — it speaks the
+  separate D-Bus-based StatusNotifierItem protocol, not EWMH, so it's
+  already portable for a different reason entirely.)
 - `ControlCenter.qml`, `Settings.qml`, the calendar flyout, the
   notification history panel, and the taskbar-mode launcher are all
   Quickshell `PopupWindow`s anchored directly to another one of the

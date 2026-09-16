@@ -9,8 +9,8 @@ feedback of any kind.
 
 This is a working *default*, not a first-run wizard — see `ROADMAP.md`'s
 backlog for the planned interactive first-run setup (choosing which bar
-modules show, tray contents, whether to enable a dock, etc.) that will
-eventually customize this rather than requiring hand-edits.
+modules show, Control Center contents, whether to enable a dock, etc.)
+that will eventually customize this rather than requiring hand-edits.
 
 This shell talks to the WM purely over X11/EWMH plus a documented set of
 window rules — see [INTERFACE.md](INTERFACE.md) for the full contract,
